@@ -1,0 +1,14 @@
+# Frontend (Next.js / React)
+Frontend/node_modules/
+Frontend/.next/
+Frontend/dist/
+Frontend/.env
+
+# Backend (Django)
+Backend/venv/
+Backend/env/
+Backend/__pycache__/
+Backend/*.pyc
+Backend/db.sqlite3
+Backend/.env
+Backend/game_transactions.loggit rm -r --cached .

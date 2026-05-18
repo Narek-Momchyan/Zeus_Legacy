@@ -14,6 +14,7 @@ const SOUNDS = {
   collectMultiplier: 'https://assets.mixkit.co/active_storage/sfx/2019/2019-preview.mp3',
   winTick: 'https://assets.mixkit.co/active_storage/sfx/2013/2013-preview.mp3',
   scatterImpact: 'https://assets.mixkit.co/active_storage/sfx/2020/2020-preview.mp3',
+  anteToggle: 'https://assets.mixkit.co/active_storage/sfx/2562/2562-preview.mp3',
 };
 
 const useGameAudio = () => {
@@ -21,19 +22,31 @@ const useGameAudio = () => {
   const [isLoaded, setIsLoaded] = useState(false);
   const audioCache = useRef({});
 
-  // Preload all sounds
+  // Preload all sounds with database overrides
   useEffect(() => {
     const saved = localStorage.getItem('slot_muted') === 'true';
     setIsMuted(saved);
 
-    Object.entries(SOUNDS).forEach(([key, url]) => {
-      const audio = new Audio(url);
-      audio.preload = 'auto';
-      audio.load();
-      audioCache.current[key] = audio;
-    });
+    const loadAudios = () => {
+      Object.entries(SOUNDS).forEach(([key, defaultUrl]) => {
+        const customUrl = typeof window !== 'undefined' && window.customGameAudios && window.customGameAudios[key];
+        const finalUrl = customUrl || defaultUrl;
+        
+        const currentAudio = audioCache.current[key];
+        if (!currentAudio || currentAudio.src !== finalUrl) {
+          const audio = new Audio(finalUrl);
+          audio.preload = 'auto';
+          audio.load();
+          audioCache.current[key] = audio;
+        }
+      });
+      setIsLoaded(true);
+    };
 
-    setIsLoaded(true);
+    loadAudios();
+
+    window.addEventListener('gameConfigLoaded', loadAudios);
+    return () => window.removeEventListener('gameConfigLoaded', loadAudios);
   }, []);
 
   const bonusThemeRef = useRef(null);

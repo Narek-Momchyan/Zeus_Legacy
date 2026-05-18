@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import useGameAudio from './useGameAudio';
-import { spinRequest, fetchBalance } from '../api/gameApi';
+import { spinRequest, fetchBalance, fetchGameConfig } from '../api/gameApi';
 
 // ═══════════════════════════════════════════════════════════════════════════
 //  CONSTANTS
@@ -12,6 +12,27 @@ const ROWS = 5;
 const BET_STEPS = [0.20, 0.50, 1.00, 2.00, 5.00, 10.00, 20.00, 50.00, 100.00];
 const DEFAULT_BET_IDX = 2; // $1.00
 const STARTING_BALANCE = 1000.0;
+
+const SPEED_CONFIGS = {
+  normal: {
+    initialDelay: 700, // Initial spin duration until reels stop
+    winShowDelay: 1000, // Exploding wins animation time
+    cascadeDelay: 900, // Drop new symbols cascade delay
+    finalPause: 200    // Final pause before balance sync
+  },
+  turbo: {
+    initialDelay: 400,
+    winShowDelay: 600,
+    cascadeDelay: 400,
+    finalPause: 300
+  },
+  instant: {
+    initialDelay: 100,
+    winShowDelay: 150,
+    cascadeDelay: 100,
+    finalPause: 100
+  }
+};
 
 // ═══════════════════════════════════════════════════════════════════════════
 //  HELPERS
@@ -42,7 +63,10 @@ const useSlotEngine = () => {
   // ── Spin state ────────────────────────────────────────────────────────
   const [isSpinning, setIsSpinning]   = useState(false);
   const isSpinningRef                 = useRef(false);
+  const isSkippingRef                 = useRef(false);
   const [tumbleCount, setTumbleCount] = useState(0);
+  const [speedMode, setSpeedMode]     = useState('normal');
+  const speedModeRef                  = useRef('normal');
 
   // ── Win amounts ───────────────────────────────────────────────────────
   const [totalWin, setTotalWin]         = useState(0);   // accumulates during tumble
@@ -90,26 +114,60 @@ const useSlotEngine = () => {
   // Keep refs in sync with state so async callbacks see latest values
   useEffect(() => { isBonusRef.current    = isBonusMode;    }, [isBonusMode]);
   useEffect(() => { globalMultRef.current = globalMultiplier; }, [globalMultiplier]);
+  useEffect(() => { speedModeRef.current  = speedMode; }, [speedMode]);
   
-  // Fetch initial balance
+  // Fetch initial balance and game configuration
   useEffect(() => {
     fetchBalance()
       .then(setBalance)
       .catch(() => {})
       .finally(() => setIsBalanceLoading(false));
+
+    fetchGameConfig()
+      .then(config => {
+        if (config) {
+          // Store symbols
+          if (config.symbols) {
+            const symRegistry = {};
+            config.symbols.forEach(s => {
+              if (s.image_url) {
+                symRegistry[s.symbol_id] = s.image_url;
+              }
+            });
+            window.customSymbolImages = symRegistry;
+          }
+          // Store audios
+          if (config.audios) {
+            const audioRegistry = {};
+            config.audios.forEach(a => {
+              if (a.audio_url) {
+                audioRegistry[a.audio_id] = a.audio_url;
+              }
+            });
+            window.customGameAudios = audioRegistry;
+          }
+          // Dispatch loaded event
+          window.dispatchEvent(new Event('gameConfigLoaded'));
+        }
+      })
+      .catch(err => console.error("Error loading game config:", err));
   }, []);
 
   // ─────────────────────────────────────────────────────────────────────
   //  SPIN (Backend Driven)
   // ─────────────────────────────────────────────────────────────────────
   const spin = useCallback(async (options = {}) => {
-    if (isSpinningRef.current) return;
+    if (isSpinningRef.current) {
+      isSkippingRef.current = true;
+      return;
+    }
     
     const isBuyBonus = options.isBuyBonus === true;
     const isFreeSpin = isBonusRef.current;
 
     isSpinningRef.current = true;
     setIsSpinning(true);
+    isSkippingRef.current = false;
 
     // Reset UI for new spin
     setWinningCoords([]);
@@ -118,6 +176,15 @@ const useSlotEngine = () => {
     setTumbleCount(0);
     setShouldShake(false);
     setShowParticles(false);
+
+    // Smart delay that skips instantly if isSkippingRef is true
+    const smartDelay = async (ms) => {
+      const start = Date.now();
+      while (Date.now() - start < ms) {
+        if (isSkippingRef.current) return;
+        await delay(50);
+      }
+    };
 
     try {
       // 1. Request spin from Backend
@@ -139,7 +206,8 @@ const useSlotEngine = () => {
         setTimeout(() => playScatterImpact(), 300);
       }
       
-      await delay(600);
+      const speed = SPEED_CONFIGS[speedModeRef.current];
+      await smartDelay(speed.initialDelay);
 
       // Tumbles
       let currentTotalWin = 0;
@@ -165,7 +233,7 @@ const useSlotEngine = () => {
           setTotalWin(currentTotalWin);
 
           // Real casino wait: Let the player SEE the win
-          await delay(1200); 
+          await smartDelay(speed.winShowDelay); 
 
           // Clear wins and drop new symbols
           setWinningCoords([]);
@@ -175,11 +243,11 @@ const useSlotEngine = () => {
              setTimeout(() => playScatterImpact(), 300);
           }
 
-          await delay(700); 
+          await smartDelay(speed.cascadeDelay); 
         }
       }
 
-      await delay(500); // Final pause before balance sync
+      await smartDelay(speed.finalPause); // Final pause before balance sync
 
       // 3. Finalize Spin
       if (isFreeSpin) {
@@ -301,6 +369,8 @@ const useSlotEngine = () => {
     isMuted,
     isLoaded,
     toggleMute,
+    speedMode,
+    setSpeedMode,
   };
 };
 

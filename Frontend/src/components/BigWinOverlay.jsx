@@ -6,6 +6,7 @@ const STAGES = [
   { name: 'SUPER WIN', mult: 25,  color: '#f97316' },
   { name: 'MEGA WIN',  mult: 50,  color: '#ef4444' },
   { name: 'ULTRA WIN', mult: 100, color: '#a855f7' },
+  { name: 'MAX WIN',   mult: 1000, color: '#facc15' },
 ];
 
 const BigWinOverlay = ({ amount, betAmount, onComplete }) => {

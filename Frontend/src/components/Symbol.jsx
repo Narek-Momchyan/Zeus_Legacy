@@ -26,6 +26,23 @@ const SYMBOL_ASSETS = {
 };
 
 const Symbol = ({ id, uid = 'x', className = '' }) => {
+  const [customSrc, setCustomSrc] = React.useState(
+    typeof window !== 'undefined' && window.customSymbolImages ? window.customSymbolImages[id] : null
+  );
+
+  React.useEffect(() => {
+    const handleLoaded = () => {
+      if (typeof window !== 'undefined' && window.customSymbolImages) {
+        setCustomSrc(window.customSymbolImages[id] || null);
+      }
+    };
+    
+    handleLoaded();
+
+    window.addEventListener('gameConfigLoaded', handleLoaded);
+    return () => window.removeEventListener('gameConfigLoaded', handleLoaded);
+  }, [id]);
+
   // ── MULTIPLIERS (SVG) ──
   if (id === 'mult_2')   return <div className="w-full h-full p-[6%]"><MultiplierSymbol value="x2"   color="#00cfff" uid={uid} /></div>;
   if (id === 'mult_5')   return <div className="w-full h-full p-[6%]"><MultiplierSymbol value="x5"   color="#a855f7" uid={uid} /></div>;
@@ -37,7 +54,7 @@ const Symbol = ({ id, uid = 'x', className = '' }) => {
   if (id === 'mult_500') return <div className="w-full h-full p-[6%]"><MultiplierSymbol value="x500" color="#facc15" uid={uid} /></div>;
 
   // ── PREMIUM IMAGE ASSETS ──
-  const asset = SYMBOL_ASSETS[id];
+  const asset = customSrc || SYMBOL_ASSETS[id];
   
   if (asset) {
     return (

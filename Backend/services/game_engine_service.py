@@ -47,28 +47,137 @@ class GameEngineService:
     Handles grid generation, win evaluation, and tumbling mechanics.
     """
 
-    def __init__(self, config: Optional[GameConfig] = None):
-        # Default configuration if none provided
-        self.config = config or self._get_default_config()
-        
-        # Define State-Dependent Weight Tables (Senior Casino Math implementation)
-        # BASE GAME: Multipliers (x symbols) are extremely rare
-        self.BASE_GAME_WEIGHTS = {
-            "crown": 4.0, "hourglass": 8.0, "ring": 12.0, "cup": 18.0,
-            "red_gem": 35.0, "purple_gem": 45.0, "yellow_gem": 55.0, "green_gem": 65.0, "blue_gem": 75.0,
-            "scatter": 6.0,
-            "mult_2": 0.05, "mult_5": 0.02, "mult_10": 0.01, "mult_25": 0.005,
-            "mult_50": 0.002, "mult_100": 0.001, "mult_250": 0.0005, "mult_500": 0.0001
-        }
+    def _load_symbols_from_db(self):
+        try:
+            from api.models import Symbol, GameAudio
+            # If the database is empty, seed it (fallback)
+            if Symbol.objects.count() == 0:
+                self._seed_db_symbols_local()
+                
+            if GameAudio.objects.count() == 0:
+                self._seed_db_audios_local()
+                
+            db_symbols = Symbol.objects.all()
+            if not db_symbols:
+                return None, None, None
+                
+            symbols = []
+            base_weights = {}
+            free_weights = {}
+            
+            for s in db_symbols:
+                payout_cfg = {}
+                if s.symbol_type == 'scatter':
+                    payout_cfg = {4: s.payout_8_9, 5: s.payout_10_11, 6: s.payout_12_plus}
+                elif s.symbol_type == 'regular':
+                    payout_cfg = {8: s.payout_8_9, 10: s.payout_10_11, 12: s.payout_12_plus}
+                
+                symbols.append(SymbolConfig(
+                    id=s.symbol_id,
+                    name=s.name,
+                    weight=int(s.weight_base),
+                    payout_config=payout_cfg,
+                    type=s.symbol_type,
+                    multiplier_value=s.multiplier_value
+                ))
+                
+                base_weights[s.symbol_id] = s.weight_base
+                free_weights[s.symbol_id] = s.weight_free
+                
+            return symbols, base_weights, free_weights
+        except Exception as e:
+            import logging
+            logging.getLogger('django').warning(f"Failed to load slot symbols from DB: {str(e)}. Using static math configuration fallback.")
+            return None, None, None
 
-        # FREE SPINS: Multipliers are frequent (The 'Money' round)
-        self.FREE_SPIN_WEIGHTS = {
-            "crown": 4.0, "hourglass": 8.0, "ring": 12.0, "cup": 18.0,
-            "red_gem": 35.0, "purple_gem": 45.0, "yellow_gem": 55.0, "green_gem": 65.0, "blue_gem": 75.0,
-            "scatter": 9.0, # Slightly higher scatter for retriggers
-            "mult_2": 8.0, "mult_5": 5.0, "mult_10": 3.0, "mult_25": 1.5,
-            "mult_50": 0.8, "mult_100": 0.4, "mult_250": 0.1, "mult_500": 0.05
-        }
+    def _seed_db_symbols_local(self):
+        from api.models import Symbol
+        
+        # Check if database has the old high win chance weights, and purge to auto-upgrade to real casino math
+        if Symbol.objects.filter(symbol_id="blue_gem", weight_base=75.0).exists():
+            Symbol.objects.all().delete()
+            
+        default_symbols = [
+            {"id": "crown", "name": "Crown", "type": "regular", "weight_base": 2.5, "weight_free": 4.0, "payout_8_9": 10.0, "payout_10_11": 25.0, "payout_12_plus": 50.0},
+            {"id": "hourglass", "name": "Hourglass", "type": "regular", "weight_base": 4.0, "weight_free": 8.0, "payout_8_9": 2.5, "payout_10_11": 10.0, "payout_12_plus": 25.0},
+            {"id": "ring", "name": "Ring", "type": "regular", "weight_base": 6.0, "weight_free": 12.0, "payout_8_9": 2.0, "payout_10_11": 5.0, "payout_12_plus": 15.0},
+            {"id": "cup", "name": "Cup", "type": "regular", "weight_base": 8.0, "weight_free": 18.0, "payout_8_9": 1.5, "payout_10_11": 2.0, "payout_12_plus": 12.0},
+            {"id": "red_gem", "name": "Red Gem", "type": "regular", "weight_base": 15.0, "weight_free": 22.0, "payout_8_9": 1.0, "payout_10_11": 1.5, "payout_12_plus": 10.0},
+            {"id": "purple_gem", "name": "Purple Gem", "type": "regular", "weight_base": 18.0, "weight_free": 24.0, "payout_8_9": 0.8, "payout_10_11": 1.2, "payout_12_plus": 8.0},
+            {"id": "yellow_gem", "name": "Yellow Gem", "type": "regular", "weight_base": 20.0, "weight_free": 26.0, "payout_8_9": 0.5, "payout_10_11": 1.0, "payout_12_plus": 5.0},
+            {"id": "green_gem", "name": "Green Gem", "type": "regular", "weight_base": 22.0, "weight_free": 28.0, "payout_8_9": 0.4, "payout_10_11": 0.9, "payout_12_plus": 4.0},
+            {"id": "blue_gem", "name": "Blue Gem", "type": "regular", "weight_base": 24.0, "weight_free": 30.0, "payout_8_9": 0.25, "payout_10_11": 0.75, "payout_12_plus": 2.0},
+            {"id": "scatter", "name": "Zeus Scatter", "type": "scatter", "weight_base": 1.5, "weight_free": 8.0, "payout_8_9": 3.0, "payout_10_11": 5.0, "payout_12_plus": 100.0},
+            {"id": "mult_2", "name": "x2 Multiplier", "type": "multiplier", "weight_base": 1.0, "weight_free": 16.0, "multiplier_value": 2.0},
+            {"id": "mult_5", "name": "x5 Multiplier", "type": "multiplier", "weight_base": 0.5, "weight_free": 10.0, "multiplier_value": 5.0},
+            {"id": "mult_10", "name": "x10 Multiplier", "type": "multiplier", "weight_base": 0.2, "weight_free": 6.0, "multiplier_value": 10.0},
+            {"id": "mult_25", "name": "x25 Multiplier", "type": "multiplier", "weight_base": 0.05, "weight_free": 3.0, "multiplier_value": 25.0},
+            {"id": "mult_50", "name": "x50 Multiplier", "type": "multiplier", "weight_base": 0.02, "weight_free": 1.5, "multiplier_value": 50.0},
+            {"id": "mult_100", "name": "x100 Multiplier", "type": "multiplier", "weight_base": 0.01, "weight_free": 0.8, "multiplier_value": 100.0},
+            {"id": "mult_250", "name": "x250 Multiplier", "type": "multiplier", "weight_base": 0.005, "weight_free": 0.3, "multiplier_value": 250.0},
+            {"id": "mult_500", "name": "x500 Multiplier", "type": "multiplier", "weight_base": 0.002, "weight_free": 0.1, "multiplier_value": 500.0},
+        ]
+        for ds in default_symbols:
+            Symbol.objects.get_or_create(
+                symbol_id=ds["id"],
+                defaults={
+                    "name": ds["name"],
+                    "symbol_type": ds["type"],
+                    "weight_base": ds["weight_base"],
+                    "weight_free": ds["weight_free"],
+                    "multiplier_value": ds.get("multiplier_value", 0.0),
+                    "payout_8_9": ds.get("payout_8_9", 0.0),
+                    "payout_10_11": ds.get("payout_10_11", 0.0),
+                    "payout_12_plus": ds.get("payout_12_plus", 0.0),
+                }
+            )
+
+    def _seed_db_audios_local(self):
+        from api.models import GameAudio
+        default_audios = [
+            {"id": "stoneTumble", "name": "Stone Tumble Sound"},
+            {"id": "sparkleWin", "name": "Sparkle Win Sound"},
+            {"id": "zeusLightning", "name": "Zeus Lightning Sound"},
+            {"id": "epicDrop", "name": "Epic Drop Sound"},
+            {"id": "freeSpinsTheme", "name": "Free Spins Background Music"},
+            {"id": "bigWin", "name": "Big Win Fanfare"},
+            {"id": "megaWin", "name": "Mega Win Fanfare"},
+            {"id": "ultraWin", "name": "Ultra Win Fanfare"},
+            {"id": "anteToggle", "name": "Ante Bet Toggle Switch"},
+            {"id": "symbolExplode", "name": "Symbol Explosion Impact"},
+            {"id": "collectMultiplier", "name": "Collect Multiplier Chime"},
+            {"id": "winTick", "name": "Balance Count-up Ticking"},
+            {"id": "scatterImpact", "name": "Scatter Landing Impact"},
+        ]
+        for da in default_audios:
+            GameAudio.objects.get_or_create(
+                audio_id=da["id"],
+                defaults={"name": da["name"]}
+            )
+
+    def __init__(self, config: Optional[GameConfig] = None):
+        db_symbols, db_base_weights, db_free_weights = self._load_symbols_from_db()
+        
+        if db_symbols:
+            self.config = GameConfig(rows=5, cols=6, symbols=db_symbols)
+            self.BASE_GAME_WEIGHTS = db_base_weights
+            self.FREE_SPIN_WEIGHTS = db_free_weights
+        else:
+            self.config = config or self._get_default_config()
+            self.BASE_GAME_WEIGHTS = {
+                "crown": 2.5, "hourglass": 4.0, "ring": 6.0, "cup": 8.0,
+                "red_gem": 15.0, "purple_gem": 18.0, "yellow_gem": 20.0, "green_gem": 22.0, "blue_gem": 24.0,
+                "scatter": 1.5,
+                "mult_2": 1.0, "mult_5": 0.5, "mult_10": 0.2, "mult_25": 0.05,
+                "mult_50": 0.02, "mult_100": 0.01, "mult_250": 0.005, "mult_500": 0.002
+            }
+            self.FREE_SPIN_WEIGHTS = {
+                "crown": 4.0, "hourglass": 8.0, "ring": 12.0, "cup": 18.0,
+                "red_gem": 22.0, "purple_gem": 24.0, "yellow_gem": 26.0, "green_gem": 28.0, "blue_gem": 30.0,
+                "scatter": 8.0,
+                "mult_2": 16.0, "mult_5": 10.0, "mult_10": 6.0, "mult_25": 3.0,
+                "mult_50": 1.5, "mult_100": 0.8, "mult_250": 0.3, "mult_500": 0.1
+            }
 
         # Sync symbol IDs from the config
         self._symbol_ids = [s.id for s in self.config.symbols]
@@ -351,6 +460,7 @@ class GameEngineService:
         global_mult = current_global_multiplier
         scatters_paid = False
         triggered_free_spins = False
+        any_multiplier_collected = False
         
         while tumble_count < max_tumbles:
             result = self.evaluate_wins(current_grid)
@@ -372,14 +482,22 @@ class GameEngineService:
             # If there's a win in this tumble, multipliers are collected
             if result.wins and tumble_mult_sum > 0:
                 global_mult += tumble_mult_sum
+                any_multiplier_collected = True
             
             # 3. Payout Calculation
             cumulative_base_win += result.total_payout
             
             # Sequence win = (Sum of gem wins * Current Global Multiplier) + Scatter Win
-            current_multiplier_to_apply = global_mult if global_mult > 0 else 1
+            # Real Slot Rule: Accumulated multiplier ONLY applies if at least one multiplier landed in a winning tumble of this spin.
+            current_multiplier_to_apply = global_mult if (global_mult > 0 and any_multiplier_collected) else 1
             # IMPORTANT: Scatter wins are NEVER multiplied by the global multiplier in real slots.
             current_sequence_win = (cumulative_base_win * current_multiplier_to_apply) + total_scatter_win
+
+            # 3b. MAX WIN CAPPING (1000x)
+            max_win_capped = False
+            if current_sequence_win >= 1000.0:
+                current_sequence_win = 1000.0
+                max_win_capped = True
 
             next_grid = self.apply_tumble(
                 current_grid, 
@@ -387,30 +505,32 @@ class GameEngineService:
                 is_free_spin=is_free_spin, 
                 is_ante_bet=is_ante_bet,
                 disable_multipliers=disable_multipliers
-            ) if result.wins else [row[:] for row in current_grid]
+            ) if (result.wins and not max_win_capped) else [row[:] for row in current_grid]
 
             step_data = {
                 "step": tumble_count,
                 "grid": [row[:] for row in current_grid],
-                "next_grid": next_grid,
-                "winning_coords": result.winning_coords,
+                "next_grid": next_grid if not max_win_capped else [row[:] for row in current_grid],
+                "winning_coords": result.winning_coords if not max_win_capped else [],
                 "multiplier": tumble_mult_sum if tumble_mult_sum > 0 else None,
-                "payout": result.total_payout,
+                "payout": result.total_payout if not max_win_capped else 0,
                 "sequence_win": current_sequence_win,
-                "is_free_spin": is_free_spin
+                "is_free_spin": is_free_spin,
+                "is_max_win": max_win_capped
             }
             tumble_history.append(step_data)
             
-            if not result.wins:
+            if not result.wins or max_win_capped:
                 break
                 
             current_grid = next_grid
             tumble_count += 1
             
-        final_total_win = (cumulative_base_win * (global_mult if global_mult > 0 else 1)) + total_scatter_win
+        final_multiplier_to_apply = global_mult if (global_mult > 0 and any_multiplier_collected) else 1
+        final_total_win = (cumulative_base_win * final_multiplier_to_apply) + total_scatter_win
         
-        # FINAL PROTECTION: Max win in Gates of Olympus is 5000x
-        final_total_win = min(final_total_win, 5000.0)
+        # FINAL PROTECTION: Max win capped at 1000.0
+        final_total_win = min(final_total_win, 1000.0)
 
         # TRIGGER CAP: Cap the win of the spin that triggers free spins to 10x
         if force_scatters > 0:

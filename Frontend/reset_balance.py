@@ -1,7 +1,8 @@
 import sqlite3
 import os
 
-db_path = r'C:\Users\DM\Desktop\slot\db.sqlite3'
+# Dynamic path pointing directly to your active Backend SQLite database
+db_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'Backend', 'db.sqlite3'))
 
 def reset():
     if not os.path.exists(db_path):

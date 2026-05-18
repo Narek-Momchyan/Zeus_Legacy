@@ -2,9 +2,15 @@ import React, { useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Symbol from './Symbol';
 
-const SlotGrid = ({ grid, winningCoords = [], isBonusMode = false, onSymbolLand }) => {
+const SlotGrid = ({ grid, winningCoords = [], isBonusMode = false, onSymbolLand, speedMode = 'normal' }) => {
   const isWinning = (r, c) => Array.isArray(winningCoords) && winningCoords.some(([wr, wc]) => wr === r && wc === c);
   const safeId = (id) => (id && typeof id === 'string' ? id : 'blue_stone');
+
+  const isInstant = speedMode === 'instant';
+  const isTurbo = speedMode === 'turbo';
+
+  const springStiffness = isInstant ? 1000 : (isTurbo ? 450 : 120);
+  const springDamping = isInstant ? 40 : (isTurbo ? 24 : 15);
 
   return (
     <div
@@ -17,6 +23,8 @@ const SlotGrid = ({ grid, winningCoords = [], isBonusMode = false, onSymbolLand 
           const id = safeId(symbolId);
           const winning = isWinning(rIndex, cIndex);
           const isMult = typeof id === 'string' && id.startsWith('mult_');
+
+          const delayVal = isInstant ? 0 : (isTurbo ? (cIndex * 0.02) : (cIndex * 0.06 + rIndex * 0.04));
 
           return (
             <div
@@ -50,11 +58,12 @@ const SlotGrid = ({ grid, winningCoords = [], isBonusMode = false, onSymbolLand 
                     animate={{ y: 0, opacity: 1 }}
                     exit={{ scale: 0, opacity: 0 }}
                     transition={{
-                      type: 'spring',
-                      stiffness: 500,
-                      damping: 25,
-                      mass: 0.8,
-                      delay: cIndex * 0.03 + (rIndex * 0.02),
+                      type: isInstant ? 'tween' : 'spring',
+                      stiffness: springStiffness,
+                      damping: springDamping,
+                      mass: 0.85,
+                      delay: delayVal,
+                      duration: isInstant ? 0.05 : undefined
                     }}
                     onAnimationComplete={() => {
                       if (onSymbolLand) onSymbolLand();

@@ -28,7 +28,18 @@ export const fetchBalance = async () => {
   }
 };
 
+export const fetchGameConfig = async () => {
+  try {
+    const response = await apiClient.get('/api/game-config/');
+    return response.data;
+  } catch (error) {
+    console.error('API Error fetching game config:', error.response?.data || error.message);
+    return null;
+  }
+};
+
 export default {
   spinRequest,
   fetchBalance,
+  fetchGameConfig,
 };

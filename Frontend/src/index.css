@@ -18,6 +18,13 @@
 /* ── Reset & Base ── */
 *, *::before, *::after { box-sizing: border-box; }
 
+html {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
 :root {
   font-family: 'Outfit', system-ui, sans-serif;
   color-scheme: dark;
@@ -28,6 +35,8 @@
 
 body {
   margin: 0;
+  padding: 0;
+  width: 100%;
   min-height: 100vh;
   min-width: 320px;
   overflow-x: hidden;
@@ -173,6 +182,16 @@ body {
   margin-top: 2px;
 }
 
+.ante-knob {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  position: absolute;
+  top: 2px;
+  left: 0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
 
 .ante-boost {
   font-size: 8px;
@@ -310,25 +329,29 @@ body {
 /* ── Mobile Layout Adjustments ── */
 @media (max-width: 1024px) {
   .app-container {
-    height: auto;
-    min-height: 100vh;
-    overflow-y: auto;
+    height: 100vh;
+    height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
   }
 
   .game-area {
     flex-direction: column;
-    align-items: center;
-    padding: 4px;
-    gap: 8px; /* Reduced gap */
-    height: auto;
-    flex: none;
+    align-items: stretch;
+    padding: 4px 12px;
+    gap: 6px;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
   }
 
   .multiplier-panel {
     width: 100% !important;
-    min-height: 40px !important;
+    min-height: 38px !important;
+    height: 38px !important;
     flex-direction: row !important;
-    padding: 4px 10px !important;
+    padding: 2px 8px !important;
     overflow-x: auto;
     overflow-y: hidden !important;
     order: 2;
@@ -336,46 +359,65 @@ body {
     border-radius: 10px;
     display: flex;
     align-items: center;
-    justify-content: space-between; /* Align labels and items */
+    justify-content: space-between;
+    flex-shrink: 0;
+    margin-top: 25px !important; /* Push down to clear Zeus's feet/platform */
   }
   
   .multiplier-list {
     flex-direction: row !important;
     gap: 6px !important;
-    scale: 0.9 !important;
+    scale: 0.95 !important;
     transform-origin: left center;
   }
 
   .multiplier-badge {
-    padding: 6px 12px !important;
+    padding: 4px 10px !important;
+    font-size: 11px !important;
   }
 
   .zeus-panel {
     width: 100% !important;
-    height: 90px !important; /* Even shorter */
-    padding: 0 !important;
-    margin-top: 25px !important; /* Slightly reduced */
+    height: 105px !important;
     order: 1;
-    display: flex;
-    justify-content: center;
-    align-items: flex-start;
+    position: relative !important;
+    top: auto !important;
+    right: auto !important;
+    display: flex !important;
+    justify-content: center !important;
+    align-items: flex-start !important;
     overflow: visible !important;
+    pointer-events: none;
+    z-index: 20;
+    margin: 6px 0 2px 0 !important;
   }
 
   .zeus-container {
-    width: 160px !important;
-    height: 240px !important;
-    scale: 0.55;
-    transform: translateY(0);
-    transform-origin: center top;
+    width: 100px !important;
+    height: 150px !important;
+    scale: 0.82 !important;
+    transform-origin: center top !important;
   }
 
   .grid-container {
     width: 100% !important;
-    max-width: 500px !important;
-    aspect-ratio: 6/5;
+    max-width: 380px !important;
+    margin: 0 auto;
     order: 3;
-    flex: none !important;
+    flex: 1 !important; /* Fill available vertical space to center the grid */
+    min-height: 0;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  .slot-grid-wrap {
+    width: 100% !important;
+    height: auto !important; /* Prevent vertical stretching */
+  }
+
+  .sym-cell {
+    aspect-ratio: 1/1 !important; /* Force perfect square cells on mobile */
   }
 
   .ante-bet-wrap {
@@ -385,26 +427,33 @@ body {
   }
 
   .controls-section {
-    padding: 16px 8px;
-    max-width: 100%;
+    padding: 4px 12px 12px !important;
+    max-width: 480px !important;
+    margin: 0 auto;
+    width: 100% !important;
     order: 4;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px !important;
   }
 
   .global-multiplier-wrap {
     top: 10px !important;
     left: 10px !important;
-    scale: 0.8;
+    scale: 0.75;
   }
 
   #mute-btn {
     top: 10px !important;
     right: 10px !important;
+    scale: 0.85;
   }
 }
 
 @media (max-width: 640px) {
   .stat-value {
-    font-size: 1.25rem !important;
+    font-size: 1.1rem !important;
   }
 
   .panel-label {
@@ -412,11 +461,22 @@ body {
   }
   
   .hud-column {
-    padding: 8px !important;
+    padding: 6px 4px !important;
   }
 
   .btn-spin, .btn-bonus {
-    padding: 14px 0 !important;
+    padding: 12px 0 !important;
+    font-size: 0.95rem !important;
+  }
+
+  .speed-selector-row {
+    padding: 4px 8px !important;
+    border-radius: 10px !important;
+  }
+
+  .speed-selector-row button {
+    padding: 4px 8px !important;
+    font-size: 0.68rem !important;
   }
 }
 
@@ -680,4 +740,129 @@ body {
   font-weight: 900;
   font-family: 'Outfit', monospace;
   line-height: 1;
+}
+
+/* ── Ultra-Small Screen Adaptive Media Queries ── */
+@media (max-width: 360px) {
+  .game-area {
+    padding: 2px 6px !important;
+  }
+
+  .multiplier-panel {
+    height: 32px !important;
+    min-height: 32px !important;
+    padding: 0 6px !important;
+  }
+  
+  .multiplier-badge {
+    padding: 2px 6px !important;
+    font-size: 9px !important;
+  }
+
+  .controls-section {
+    padding: 2px 6px 8px !important;
+    gap: 4px !important;
+  }
+
+  .hud-column {
+    padding: 3px 2px !important;
+  }
+
+  .stat-value {
+    font-size: 0.9rem !important;
+  }
+
+  .bet-btn {
+    width: 22px !important;
+    height: 22px !important;
+    font-size: 12px !important;
+  }
+
+  .speed-selector-row {
+    padding: 3px 6px !important;
+  }
+  
+  .speed-selector-row button {
+    padding: 3px 6px !important;
+    font-size: 0.6rem !important;
+  }
+
+  .header-title {
+    font-size: 1.1rem !important;
+  }
+  .header-subtitle {
+    display: none !important;
+  }
+}
+
+@media (max-height: 680px) {
+  .zeus-panel {
+    display: flex !important;
+    height: 70px !important;
+    margin: 2px 0 0 0 !important;
+  }
+
+  .zeus-container {
+    width: 80px !important;
+    height: 120px !important;
+    scale: 0.65 !important;
+    transform-origin: center top !important;
+  }
+  
+  .game-header {
+    padding: 3px 12px 1px !important;
+  }
+
+  .header-title {
+    font-size: 1.15rem !important;
+  }
+  
+  .header-subtitle {
+    display: none !important; /* Hide subtitle to preserve slot grid space */
+  }
+  
+  .game-area {
+    padding: 2px 6px !important;
+    gap: 4px !important;
+  }
+  
+  .multiplier-panel {
+    height: 30px !important;
+    min-height: 30px !important;
+    padding: 0 4px !important;
+    margin: 12px 0 0 0 !important; /* Push down to clear Zeus's feet/platform on short screens */
+  }
+  
+  .multiplier-badge {
+    padding: 1px 6px !important;
+    font-size: 9px !important;
+  }
+  
+  .controls-section {
+    padding: 2px 8px 8px !important;
+    gap: 4px !important;
+  }
+  
+  .hud-column {
+    padding: 3px 2px !important;
+  }
+  
+  .stat-value {
+    font-size: 0.95rem !important;
+  }
+  
+  .btn-spin, .btn-bonus {
+    padding: 10px 0 !important;
+    font-size: 0.88rem !important;
+  }
+  
+  .speed-selector-row {
+    padding: 2px 6px !important;
+    margin: 0 !important;
+  }
+
+  .speed-selector-row button {
+    padding: 2px 6px !important;
+    font-size: 0.62rem !important;
+  }
 }

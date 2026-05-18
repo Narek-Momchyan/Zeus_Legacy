@@ -71,12 +71,27 @@ WSGI_APPLICATION = 'config.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+try:
+    import dj_database_url
+    DATABASE_URL = config('DATABASE_URL', default=None)
+except ImportError:
+    DATABASE_URL = None
+
+if DATABASE_URL:
+    DATABASES = {
+        'default': dj_database_url.config(
+            default=DATABASE_URL,
+            conn_max_age=600,
+            ssl_require=True
+        )
     }
-}
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
 
 
 # Password validation
@@ -145,8 +160,10 @@ LOGGING = {
     'handlers': {
         'file': {
             'level': 'INFO',
-            'class': 'logging.FileHandler',
+            'class': 'logging.handlers.RotatingFileHandler',
             'filename': os.path.join(BASE_DIR, 'game_transactions.log'),
+            'maxBytes': 1024 * 1024 * 10, # Capped at exactly 10 Megabytes!
+            'backupCount': 0,            # Clear the file immediately when it hits 10MB (keep 0 backups)!
             'formatter': 'verbose',
         },
     },
@@ -179,3 +196,17 @@ REST_FRAMEWORK = {
         'spin': '5/second',
     }
 }
+
+# ── MEDIA FILES CONFIGURATION ──
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
+
+# ── CLOUDINARY CONFIGURATION ──
+CLOUDINARY_STORAGE_URL = config('CLOUDINARY_URL', default=None)
+if CLOUDINARY_STORAGE_URL:
+    # Auto-register Cloudinary storage if the URL is provided in Render's env!
+    if 'cloudinary_storage' not in INSTALLED_APPS:
+        INSTALLED_APPS.insert(0, 'cloudinary_storage')
+    if 'cloudinary' not in INSTALLED_APPS:
+        INSTALLED_APPS.insert(1, 'cloudinary')
+    DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'

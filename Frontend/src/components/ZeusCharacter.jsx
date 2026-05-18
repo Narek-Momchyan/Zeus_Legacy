@@ -25,10 +25,18 @@ const ZeusCharacter = ({ isAttacking, isBonusMode }) => {
           scale: { duration: 0.5 }
         }}
         style={{
-          position: 'absolute', width: '400px', height: '400px',
+          position: 'absolute', 
+          width: '320px', 
+          height: '320px',
+          left: '50%',
+          top: '50%',
+          marginLeft: '-160px',
+          marginTop: '-160px',
           border: '2px dashed rgba(96,165,250,0.3)',
-          borderRadius: '50%', zIndex: 0,
-          boxShadow: '0 0 50px rgba(96,165,250,0.2)'
+          borderRadius: '50%', 
+          zIndex: 0,
+          boxShadow: '0 0 50px rgba(96,165,250,0.2)',
+          pointerEvents: 'none'
         }}
       />
 
@@ -150,9 +158,16 @@ const ZeusCharacter = ({ isAttacking, isBonusMode }) => {
 
       {/* ── Aura / Platform ── */}
       <div style={{
-        position: 'absolute', bottom: 0, width: '250px', height: '60px',
+        position: 'absolute', 
+        bottom: 0, 
+        width: '200px', 
+        height: '40px',
+        left: '50%',
+        marginLeft: '-100px',
         background: isBonusMode ? 'radial-gradient(circle, rgba(168,85,247,0.3) 0%, transparent 70%)' : 'radial-gradient(circle, rgba(245,208,60,0.2) 0%, transparent 70%)',
-        borderRadius: '50%', filter: 'blur(15px)', zIndex: 1
+        borderRadius: '50%', 
+        filter: 'blur(15px)', 
+        zIndex: 1
       }} />
     </div>
   );

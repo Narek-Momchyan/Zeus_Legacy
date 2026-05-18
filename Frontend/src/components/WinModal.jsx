@@ -8,7 +8,7 @@ const WinModal = ({ amount, onClose, betAmount }) => {
     let start = 0;
     const end = amount;
     if (start === end) return;
-    const duration = 2500; // Longer count for more hype
+    const duration = 1200; // Speed up count-up for snappier feedback
     const increment = end / (duration / 16);
     let timer = setInterval(() => {
       start += increment;
@@ -52,12 +52,14 @@ const WinModal = ({ amount, onClose, betAmount }) => {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
+      onClick={onClose} // Allow clicking anywhere on the backdrop to collect instantly!
       style={{
         position: 'fixed', inset: 0, zIndex: 100,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         padding: 16,
         background: 'rgba(0, 0, 0, 0.9)',
         backdropFilter: 'blur(30px)',
+        cursor: 'pointer',
       }}
     >
       {/* Background Shockwave */}
@@ -76,6 +78,7 @@ const WinModal = ({ amount, onClose, betAmount }) => {
         initial={{ scale: 0.2, rotate: -10, opacity: 0 }}
         animate={{ scale: 1, rotate: 0, opacity: 1 }}
         transition={{ type: 'spring', stiffness: 260, damping: 20 }}
+        onClick={(e) => e.stopPropagation()} // Prevent closing when clicking inside the modal content
         className="glass"
         style={{
           padding: '64px 48px',

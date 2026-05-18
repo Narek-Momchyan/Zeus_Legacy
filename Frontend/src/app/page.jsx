@@ -29,7 +29,21 @@ function App() {
     betAmount, raiseBet, lowerBet, isMaxBet, isMinBet,
     buyBonus, buyBonusCost, canBuyBonus,
     isMuted, isLoaded, toggleMute, playAnteToggle,
+    speedMode, setSpeedMode,
   } = useSlotEngine()
+
+  const displayedBetAmount = isAnteBetActive ? betAmount * 1.25 : betAmount;
+
+  React.useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === ' ' || e.code === 'Space') {
+        e.preventDefault();
+        spin();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [spin]);
 
   const spinBtnClass = isSpinning
     ? 'btn-disabled'
@@ -69,7 +83,7 @@ function App() {
       {/* ── HEADER — compact ── */}
       <header style={{ textAlign: 'center', padding: '7px 16px 3px', width: '100%', flexShrink: 0 }}>
         <motion.h1
-          className={`font-olympus ${isBonusMode ? '' : 'text-gold'}`}
+          className={`font-olympus header-title ${isBonusMode ? '' : 'text-gold'}`}
           style={{
             fontSize: 'clamp(1rem, 2.8vw, 1.75rem)',
             fontWeight: 900, margin: 0, lineHeight: 1,
@@ -80,9 +94,9 @@ function App() {
         >
           {isBonusMode ? '⚡ FREE SPINS ⚡' : 'Zeus Legacy'}
         </motion.h1>
-        <p className="panel-label" style={{ marginTop: 2, fontSize: 8, color: isBonusMode ? 'rgba(200,140,255,0.45)' : undefined }}>
+        <div className="header-subtitle panel-label" style={{ marginTop: 2, fontSize: 8, color: isBonusMode ? 'rgba(200,140,255,0.45)' : undefined }}>
           {isBonusMode ? `${freeSpinsLeft} SPINS REMAINING` : 'PREMIUM · CASCADING · PAY ANYWHERE'}
-        </p>
+        </div>
       </header>
 
       {/* ── GAME AREA ── */}
@@ -169,6 +183,7 @@ function App() {
             winningCoords={winningCoords}
             isBonusMode={isBonusMode}
             onSymbolLand={playStoneTumble}
+            speedMode={speedMode}
           />
         </div>
 
@@ -263,7 +278,7 @@ function App() {
                 >−</button>
 
                 <div className="stat-value bet-value text-gold">
-                  ${betAmount.toFixed(2)}
+                  ${displayedBetAmount.toFixed(2)}
                 </div>
 
                 {/* + */}
@@ -275,6 +290,45 @@ function App() {
                 >+</button>
               </div>
             )}
+          </div>
+        </div>
+
+        {/* Speed Selector Row */}
+        <div className="speed-selector-row glass" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 12px', borderRadius: '12px', width: '100%', border: '1px solid rgba(255,255,255,0.06)', background: 'rgba(255, 255, 255, 0.015)' }}>
+          <span className="panel-label" style={{ fontSize: '9px', margin: 0 }}>Speed Mode</span>
+          <div style={{ display: 'flex', gap: 6 }}>
+            {['normal', 'turbo', 'instant'].map((mode) => {
+              const isActive = speedMode === mode;
+              const emoji = mode === 'normal' ? '🐢' : mode === 'turbo' ? '⚡' : '🚀';
+              const label = mode === 'normal' ? 'Normal' : mode === 'turbo' ? 'Turbo' : 'Instant';
+              return (
+                <button
+                  key={mode}
+                  disabled={isSpinning}
+                  onClick={() => setSpeedMode(mode)}
+                  style={{
+                    padding: '5px 12px',
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    textTransform: 'uppercase',
+                    borderRadius: '8px',
+                    border: '1px solid',
+                    borderColor: isActive ? (mode === 'normal' ? '#f5d060' : mode === 'turbo' ? '#a855f7' : '#ef4444') : 'rgba(255,255,255,0.06)',
+                    background: isActive ? (mode === 'normal' ? 'rgba(245,208,60,0.15)' : mode === 'turbo' ? 'rgba(168,85,247,0.15)' : 'rgba(239,68,68,0.15)') : 'rgba(255,255,255,0.02)',
+                    color: isActive ? '#fff' : 'rgba(255,255,255,0.5)',
+                    cursor: isSpinning ? 'not-allowed' : 'pointer',
+                    transition: 'all 0.2s ease',
+                    boxShadow: isActive ? `0 0 12px ${mode === 'normal' ? 'rgba(245,208,60,0.2)' : mode === 'turbo' ? 'rgba(168,85,247,0.2)' : 'rgba(239,68,68,0.2)'}` : 'none',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 4
+                  }}
+                >
+                  <span>{emoji}</span>
+                  <span>{label}</span>
+                </button>
+              );
+            })}
           </div>
         </div>
 
@@ -307,27 +361,25 @@ function App() {
           {/* SPIN button */}
           <motion.button
             id="spin-btn"
-            whileHover={!isSpinning ? { scale: 1.02 } : {}}
-            whileTap={!isSpinning ? { scale: 0.975 } : {}}
-            disabled={isSpinning}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.975 }}
+            disabled={false}
             onClick={spin}
-            className={spinBtnClass}
+            className={isBonusMode ? 'btn-bonus' : 'btn-spin'}
             style={{
               flex: 1.5, padding: '14px 0',
               fontSize: '1rem', fontWeight: 900,
               letterSpacing: '0.12em', textTransform: 'uppercase',
               border: 'none',
-              cursor: isSpinning ? 'not-allowed' : 'pointer',
-              boxShadow: isSpinning
-                ? 'none'
-                : isBonusMode
-                  ? '0 4px 24px rgba(168,85,247,0.45)'
-                  : '0 4px 24px rgba(245,208,60,0.38)',
+              cursor: 'pointer',
+              boxShadow: isBonusMode
+                ? '0 4px 24px rgba(168,85,247,0.45)'
+                : '0 4px 24px rgba(245,208,60,0.38)',
               borderRadius: '12px',
             }}
           >
             {isSpinning
-              ? '⚡  Tumbling...'
+              ? '🛑  STOP'
               : freeSpinsLeft > 0
                 ? `🎰  SPIN (${freeSpinsLeft} left)`
                 : '🎰   SPIN'

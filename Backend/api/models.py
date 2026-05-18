@@ -53,3 +53,47 @@ class GameLog(models.Model):
 
     def __str__(self):
         return f"Spin by {self.user.username} - Win: {self.win_amount}"
+
+
+class Symbol(models.Model):
+    """
+    Model to configure slot machine symbols dynamically from Django Admin.
+    """
+    SYMBOL_TYPES = [
+        ('regular', 'Regular Symbol'),
+        ('scatter', 'Scatter Symbol'),
+        ('multiplier', 'Multiplier Symbol'),
+    ]
+
+    symbol_id = models.CharField(max_length=50, unique=True, help_text="e.g. crown, red_gem, scatter, mult_500")
+    name = models.CharField(max_length=100)
+    symbol_type = models.CharField(max_length=20, choices=SYMBOL_TYPES, default='regular')
+    weight_base = models.FloatField(default=10.0, help_text="Weight/frequency during normal spins")
+    weight_free = models.FloatField(default=10.0, help_text="Weight/frequency during free spins")
+    
+    # Multiplier properties
+    multiplier_value = models.FloatField(default=0.0, help_text="Used only if symbol is Multiplier type")
+
+    # Paytable properties (as payout multipliers of the bet)
+    payout_8_9 = models.FloatField(default=0.0, help_text="Payout multiplier for 8-9 matching symbols (or 4 scatters)")
+    payout_10_11 = models.FloatField(default=0.0, help_text="Payout multiplier for 10-11 matching symbols (or 5 scatters)")
+    payout_12_plus = models.FloatField(default=0.0, help_text="Payout multiplier for 12+ matching symbols (or 6 scatters)")
+
+    # Custom Asset upload
+    custom_image = models.ImageField(upload_to='symbols/', blank=True, null=True, help_text="Upload custom image to replace default asset")
+
+    def __str__(self):
+        return f"{self.name} ({self.symbol_id}) - Base Weight: {self.weight_base}"
+
+
+class GameAudio(models.Model):
+    """
+    Model to configure audio assets dynamically from Django Admin.
+    """
+    audio_id = models.CharField(max_length=50, unique=True, help_text="e.g. bg_music, spin_start, win_epic, scatter_land")
+    name = models.CharField(max_length=100)
+    is_active = models.BooleanField(default=True)
+    custom_audio = models.FileField(upload_to='audios/', blank=True, null=True, help_text="Upload custom audio file (.mp3 / .wav)")
+
+    def __str__(self):
+        return f"{self.name} ({self.audio_id}) - Active: {self.is_active}"

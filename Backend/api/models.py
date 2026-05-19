@@ -18,6 +18,12 @@ class UserWallet(models.Model):
         default=Decimal('1000.00'),
         validators=[MinValueValidator(Decimal('0.00'))]
     )
+    
+    # Secure Game State Tracking
+    free_spins_left = models.IntegerField(default=0)
+    current_multiplier = models.FloatField(default=1.0)
+    free_spin_bet_amount = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'))
+    
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
@@ -97,3 +103,24 @@ class GameAudio(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.audio_id}) - Active: {self.is_active}"
+
+
+class ProgressiveJackpot(models.Model):
+    """
+    Singleton model to hold progressive jackpot pools.
+    """
+    mini_pool = models.DecimalField(max_digits=20, decimal_places=2, default=Decimal('100.00'))
+    minor_pool = models.DecimalField(max_digits=20, decimal_places=2, default=Decimal('500.00'))
+    major_pool = models.DecimalField(max_digits=20, decimal_places=2, default=Decimal('5000.00'))
+    grand_pool = models.DecimalField(max_digits=20, decimal_places=2, default=Decimal('50000.00'))
+    
+    updated_at = models.DateTimeField(auto_now=True)
+
+    @classmethod
+    def get_solo(cls):
+        obj, created = cls.objects.get_or_create(pk=1)
+        return obj
+
+    def __str__(self):
+        return f"Jackpots - Grand: ${self.grand_pool}"
+

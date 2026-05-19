@@ -3,22 +3,23 @@
 import React from 'react'
 import dynamic from 'next/dynamic'
 const SlotGrid = dynamic(() => import('../components/SlotGrid'), { ssr: false })
+const GameHero = dynamic(() => import('../components/GameHero'), { ssr: false })
 import useSlotEngine from '../hooks/useSlotEngine'
 import { motion, AnimatePresence } from 'framer-motion'
 import MultiplierBadge from '../components/MultiplierBadge'
 import LightningBolt from '../components/LightningBolt'
-import BigWinOverlay from '../components/BigWinOverlay'
-import BonusSummary from '../components/BonusSummary'
-import BonusTrigger from '../components/BonusTrigger'
-import GlobalMultiplier from '../components/GlobalMultiplier'
+const BigWinOverlay = dynamic(() => import('../components/BigWinOverlay'), { ssr: false })
+const BonusSummary = dynamic(() => import('../components/BonusSummary'), { ssr: false })
+const BonusTrigger = dynamic(() => import('../components/BonusTrigger'), { ssr: false })
+const JackpotWinOverlay = dynamic(() => import('../components/JackpotWinOverlay'), { ssr: false })
+import JackpotPanel from '../components/JackpotPanel'
 import AnimatedNumber from '../components/AnimatedNumber'
 import Particles from '../components/Particles'
-import ZeusCharacter from '../components/ZeusCharacter'
 
 function App() {
   const {
     grid, isSpinning, totalWin, tumbleCount, lastRoundWin, balance, isBalanceLoading,
-    winningCoords, spin,
+    winningCoords, spin, resetGame,
     activeMultipliers, isLightningActive, showWinModal,
     setShowWinModal, lastWinAmount,
     isBonusMode, freeSpinsLeft, globalMultiplier,
@@ -29,7 +30,8 @@ function App() {
     betAmount, raiseBet, lowerBet, isMaxBet, isMinBet,
     buyBonus, buyBonusCost, canBuyBonus,
     isMuted, isLoaded, toggleMute, playAnteToggle,
-    speedMode, setSpeedMode,
+    speedMode, setSpeedMode, autoSpinsLeft, setAutoSpinsLeft,
+    jackpotPools, jackpotWon, setJackpotWon,
   } = useSlotEngine()
 
   const displayedBetAmount = isAnteBetActive ? betAmount * 1.25 : betAmount;
@@ -50,11 +52,29 @@ function App() {
     : isBonusMode ? 'btn-bonus' : 'btn-spin'
 
   return (
-    <div className={`app-container ${shouldShake ? 'shake' : ''}`}>
+    <div className={`app-container ${shouldShake ? 'shake' : ''} ${isBonusMode ? 'bonus-mode' : ''}`}>
       {/* ── Fixed overlays ── */}
       <LightningBolt active={isLightningActive} />
-      <GlobalMultiplier value={globalMultiplier} isBonusMode={isBonusMode} />
       <Particles active={showParticles} />
+
+      {/* Reset Game */}
+      <button
+        id="reset-btn"
+        onClick={resetGame}
+        title="Reset Wallet & Exit Bonus"
+        style={{
+          position: 'fixed', top: 12, right: 56, zIndex: 60,
+          width: 34, height: 34, borderRadius: '50%',
+          background: 'rgba(255,255,255,0.06)',
+          border: '1px solid rgba(255,255,255,0.12)',
+          cursor: 'pointer', fontSize: '0.95rem',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          backdropFilter: 'blur(10px)',
+          transition: 'all 0.2s ease',
+        }}
+      >
+        🔄
+      </button>
 
       {/* Mute */}
       <button
@@ -75,9 +95,10 @@ function App() {
 
       {/* ── Modals ── */}
       <AnimatePresence>
-        {showWinModal     && <BigWinOverlay key="win-modal" amount={lastWinAmount} betAmount={betAmount} onComplete={() => setShowWinModal(false)} />}
+        {showWinModal && <BigWinOverlay key="win-modal" amount={lastWinAmount} betAmount={betAmount} onComplete={() => setShowWinModal(false)} />}
         {showBonusTrigger && <BonusTrigger key="bonus-trigger" onComplete={() => setShowBonusTrigger(false)} />}
         {showBonusSummary && <BonusSummary key="bonus-summary" totalWin={bonusTotalWin} onClose={() => setShowBonusSummary(false)} />}
+        {jackpotWon && <JackpotWinOverlay key="jackpot-win" jackpotWon={jackpotWon} onClose={() => setJackpotWon(null)} />}
       </AnimatePresence>
 
       {/* ── HEADER — compact ── */}
@@ -92,7 +113,7 @@ function App() {
           animate={isBonusMode ? { scale: [1, 1.02, 1] } : {}}
           transition={{ duration: 2.5, repeat: Infinity }}
         >
-          {isBonusMode ? '⚡ FREE SPINS ⚡' : 'Zeus Legacy'}
+          {isBonusMode ? '⚡ FREE SPINS ⚡' : 'ZEUS LEGACY'}
         </motion.h1>
         <div className="header-subtitle panel-label" style={{ marginTop: 2, fontSize: 8, color: isBonusMode ? 'rgba(200,140,255,0.45)' : undefined }}>
           {isBonusMode ? `${freeSpinsLeft} SPINS REMAINING` : 'PREMIUM · CASCADING · PAY ANYWHERE'}
@@ -101,43 +122,10 @@ function App() {
 
       {/* ── GAME AREA ── */}
       <div className="game-area">
+        {/* Left — Game Hero () */}
+        <GameHero isAttacking={isLightningActive} isBonusMode={isBonusMode} />
 
-        {/* Left — collected multipliers */}
-        <aside className="multiplier-panel">
-          <span className="panel-label" style={{ textAlign: 'center' }}>Collected</span>
-          <div className="multiplier-list">
-            <AnimatePresence>
-              {activeMultipliers.map((m, i) => <MultiplierBadge key={i} multiplier={m} />)}
-            </AnimatePresence>
-          </div>
-          {activeMultipliers.length === 0 && (
-            <div className="empty-multipliers">—</div>
-          )}
-
-          <div className="ante-bet-wrap">
-             <button 
-               onClick={() => {
-                 if (!isSpinning && !isBonusMode) {
-                   playAnteToggle();
-                   setIsAnteBetActive(!isAnteBetActive);
-                 }
-               }}
-               className={`glass ante-btn ${isAnteBetActive ? 'glow-gold active' : ''}`}
-             >
-               <span className="ante-label">ANTE BET</span>
-               <div className="ante-switch">
-                 <motion.div 
-                    animate={{ x: isAnteBetActive ? 16 : 2 }}
-                    className="ante-knob"
-                    style={{ background: isAnteBetActive ? '#f5d060' : '#fff' }} 
-                 />
-               </div>
-               <span className="ante-boost">+25%</span>
-             </button>
-          </div>
-        </aside>
-
-        {/* SLOT GRID + Tumble badge */}
+        {/* Middle — SLOT GRID + Tumble badge */}
         <div className="grid-container">
 
           {/* ── TUMBLE BADGE ── */}
@@ -146,7 +134,7 @@ function App() {
               <motion.div
                 key={tumbleCount}
                 initial={{ scale: 0.5, opacity: 0, y: 10 }}
-                animate={{ scale: 1,   opacity: 1, y: 0  }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
                 exit={{ scale: 0.7, opacity: 0 }}
                 transition={{ type: 'spring', stiffness: 400, damping: 22 }}
                 style={{
@@ -164,7 +152,7 @@ function App() {
                 }}
               >
                 <span style={{
-                  fontFamily: "'Cinzel', serif",
+                  fontFamily: 'var(--font-cinzel), serif',
                   fontWeight: 700,
                   fontSize: '0.75rem',
                   letterSpacing: '0.15em',
@@ -184,17 +172,68 @@ function App() {
             isBonusMode={isBonusMode}
             onSymbolLand={playStoneTumble}
             speedMode={speedMode}
+            isInitialSpin={tumbleCount === 0 && !isBonusMode}
           />
         </div>
 
-        {/* Right — Zeus Character */}
-        <aside className="zeus-panel">
-          <ZeusCharacter isAttacking={isLightningActive} isBonusMode={isBonusMode} />
+        {/* Right — collected multipliers */}
+        <aside className="multiplier-panel">
+          {globalMultiplier > 1 && (
+            <div className="total-multiplier-badge">
+              <span className="total-mult-label">Total</span>
+              <span className="total-mult-value">×{globalMultiplier}</span>
+              <svg width="10" height="12" viewBox="0 0 24 30" fill="none" className="total-mult-bolt">
+                <path d="M15 2L5 14H12L9 28L21 12H13L15 2Z" fill="url(#bolt-gold-sidebar)" />
+                <defs>
+                  <linearGradient id="bolt-gold-sidebar" x1="5" y1="2" x2="21" y2="28" gradientUnits="userSpaceOnUse">
+                    <stop stopColor="#fff8b0" />
+                    <stop offset="0.5" stopColor="#f5d060" />
+                    <stop offset="1" stopColor="#e5a010" />
+                  </linearGradient>
+                </defs>
+              </svg>
+            </div>
+          )}
+
+          <span className="panel-label" style={{ textAlign: 'center' }}>Collected</span>
+          <div className="multiplier-list">
+            <AnimatePresence>
+              {activeMultipliers.map((m, i) => <MultiplierBadge key={i} multiplier={m} />)}
+            </AnimatePresence>
+          </div>
+          {activeMultipliers.length === 0 && (
+            <div className="empty-multipliers">—</div>
+          )}
+
+          <div className="ante-bet-wrap">
+            <button
+              onClick={() => {
+                if (!isSpinning && !isBonusMode) {
+                  playAnteToggle();
+                  setIsAnteBetActive(!isAnteBetActive);
+                }
+              }}
+              className={`glass ante-btn ${isAnteBetActive ? 'glow-gold active' : ''}`}
+            >
+              <span className="ante-label">ANTE BET</span>
+              <div className="ante-switch">
+                <motion.div
+                  animate={{ x: isAnteBetActive ? 16 : 2 }}
+                  className="ante-knob"
+                  style={{ background: isAnteBetActive ? '#f5d060' : '#fff' }}
+                />
+              </div>
+              <span className="ante-boost">+25%</span>
+            </button>
+          </div>
         </aside>
       </div>
 
       {/* ── CONTROLS ── */}
       <section className="controls-section">
+
+        {/* ── JACKPOT PANEL ── */}
+        <JackpotPanel pools={jackpotPools} />
 
         {/* ── HUD BAR: Balance | Last Win | Bet ── */}
         <div className={`hud-bar glass ${isBonusMode ? 'glow-purple' : 'glow-gold'}`}>
@@ -358,13 +397,48 @@ function App() {
             </motion.button>
           )}
 
+          {/* AUTOPLAY button */}
+          {!isBonusMode && (
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => autoSpinsLeft > 0 ? setAutoSpinsLeft(0) : setAutoSpinsLeft(50)}
+              style={{
+                flex: 0.8, padding: '14px 4px',
+                fontSize: '0.8rem', fontWeight: 900,
+                letterSpacing: '0.05em', textTransform: 'uppercase',
+                border: autoSpinsLeft > 0 ? '1px solid #ef4444' : '1px solid rgba(255,255,255,0.2)',
+                background: autoSpinsLeft > 0 ? 'rgba(239,68,68,0.2)' : 'rgba(255,255,255,0.05)',
+                color: autoSpinsLeft > 0 ? '#fca5a5' : '#ccc',
+                cursor: 'pointer',
+                borderRadius: '12px',
+                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2,
+              }}
+            >
+              {autoSpinsLeft > 0 ? (
+                <>
+                  <span>🛑 STOP</span>
+                  <span style={{ fontSize: '0.7rem' }}>{autoSpinsLeft} LEFT</span>
+                </>
+              ) : (
+                <>
+                  <span>Auto</span>
+                  <span style={{ fontSize: '0.7rem' }}>50 SPINS</span>
+                </>
+              )}
+            </motion.button>
+          )}
+
           {/* SPIN button */}
           <motion.button
             id="spin-btn"
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.975 }}
-            disabled={false}
-            onClick={spin}
+            disabled={autoSpinsLeft > 0 && isSpinning}
+            onClick={() => {
+              if (autoSpinsLeft > 0) setAutoSpinsLeft(0);
+              else spin();
+            }}
             className={isBonusMode ? 'btn-bonus' : 'btn-spin'}
             style={{
               flex: 1.5, padding: '14px 0',
@@ -378,11 +452,13 @@ function App() {
               borderRadius: '12px',
             }}
           >
-            {isSpinning
+            {isSpinning && autoSpinsLeft === 0
               ? '🛑  STOP'
-              : freeSpinsLeft > 0
-                ? `🎰  SPIN (${freeSpinsLeft} left)`
-                : '🎰   SPIN'
+              : autoSpinsLeft > 0
+                ? `AUTO SPINNING`
+                : freeSpinsLeft > 0
+                  ? `🎰  SPIN (${freeSpinsLeft} left)`
+                  : '🎰   SPIN'
             }
           </motion.button>
         </div>
@@ -392,3 +468,4 @@ function App() {
 }
 
 export default App
+

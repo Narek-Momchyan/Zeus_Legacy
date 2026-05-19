@@ -2,7 +2,8 @@ import React, { useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Symbol from './Symbol';
 
-const SlotGrid = ({ grid, winningCoords = [], isBonusMode = false, onSymbolLand, speedMode = 'normal' }) => {
+const SlotGrid = ({ grid, winningCoords = [], isBonusMode = false, onSymbolLand, speedMode = 'normal', isInitialSpin = false }) => {
+  const landFiredRef = useRef(false);
   const isWinning = (r, c) => Array.isArray(winningCoords) && winningCoords.some(([wr, wc]) => wr === r && wc === c);
   const safeId = (id) => (id && typeof id === 'string' ? id : 'blue_stone');
 
@@ -11,6 +12,33 @@ const SlotGrid = ({ grid, winningCoords = [], isBonusMode = false, onSymbolLand,
 
   const springStiffness = isInstant ? 1000 : (isTurbo ? 450 : 120);
   const springDamping = isInstant ? 40 : (isTurbo ? 24 : 15);
+
+  // Pre-calculate scatters per column for Teaser effect
+  const scattersInCol = React.useMemo(() => {
+    const counts = [0,0,0,0,0,0];
+    if (isInitialSpin && speedMode === 'normal' && Array.isArray(grid)) {
+      grid.forEach(row => {
+        if (Array.isArray(row)) {
+          row.forEach((cell, c) => {
+            if (safeId(cell?.sym || cell) === 'scatter') {
+              if (c < 6) counts[c]++;
+            }
+          });
+        }
+      });
+    }
+    return counts;
+  }, [grid, isInitialSpin, speedMode]);
+
+  React.useEffect(() => {
+    landFiredRef.current = false;
+  }, [grid]);
+
+  const handleSymbolLand = () => {
+    if (!onSymbolLand || landFiredRef.current) return;
+    landFiredRef.current = true;
+    onSymbolLand();
+  };
 
   return (
     <div
@@ -24,12 +52,26 @@ const SlotGrid = ({ grid, winningCoords = [], isBonusMode = false, onSymbolLand,
           const winning = isWinning(rIndex, cIndex);
           const isMult = typeof id === 'string' && id.startsWith('mult_');
 
-          const delayVal = isInstant ? 0 : (isTurbo ? (cIndex * 0.02) : (cIndex * 0.06 + rIndex * 0.04));
+          // Compute Teaser Delay
+          let teaserDelayOffset = 0;
+          let isTeasing = false;
+          if (isInitialSpin && speedMode === 'normal') {
+            let sCount = 0;
+            for (let i = 0; i < cIndex; i++) {
+              if (sCount >= 3) {
+                teaserDelayOffset += 2.5; // Matches maxTeaserDelayMs logic
+              }
+              sCount += scattersInCol[i];
+            }
+            if (sCount >= 3) isTeasing = true;
+          }
+
+          const delayVal = isInstant ? 0 : (isTurbo ? (cIndex * 0.02) : (cIndex * 0.06 + rIndex * 0.04)) + teaserDelayOffset;
 
           return (
             <div
               key={uid}
-              className={`sym-cell ${isMult ? 'mult-ring' : ''} ${winning ? 'symbol-win' : ''}`}
+              className={`sym-cell ${isMult ? 'mult-ring' : ''} ${winning ? 'symbol-win' : ''} ${isTeasing ? 'teaser-glow' : ''}`}
               style={{
                 minWidth: 0, minHeight: 0,
                 position: 'relative',
@@ -65,9 +107,7 @@ const SlotGrid = ({ grid, winningCoords = [], isBonusMode = false, onSymbolLand,
                       delay: delayVal,
                       duration: isInstant ? 0.05 : undefined
                     }}
-                    onAnimationComplete={() => {
-                      if (onSymbolLand) onSymbolLand();
-                    }}
+                    onAnimationComplete={handleSymbolLand}
                     style={{ width: '100%', height: '100%' }}
                   >
                     <Symbol id={id} />

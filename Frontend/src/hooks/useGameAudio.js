@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 const SOUNDS = {
   stoneTumble: 'https://assets.mixkit.co/active_storage/sfx/2568/2568-preview.mp3', 
   sparkleWin: 'https://assets.mixkit.co/active_storage/sfx/2013/2013-preview.mp3',
-  zeusLightning: 'https://assets.mixkit.co/active_storage/sfx/1287/1287-preview.mp3',
+  lightningHit: 'https://assets.mixkit.co/active_storage/sfx/1287/1287-preview.mp3',
   epicDrop: 'https://assets.mixkit.co/active_storage/sfx/632/632-preview.mp3',
   freeSpinsTheme: 'https://assets.mixkit.co/active_storage/sfx/2290/2290-preview.mp3',
   bigWin: 'https://assets.mixkit.co/active_storage/sfx/1993/1993-preview.mp3',
@@ -14,7 +14,6 @@ const SOUNDS = {
   collectMultiplier: 'https://assets.mixkit.co/active_storage/sfx/2019/2019-preview.mp3',
   winTick: 'https://assets.mixkit.co/active_storage/sfx/2013/2013-preview.mp3',
   scatterImpact: 'https://assets.mixkit.co/active_storage/sfx/2020/2020-preview.mp3',
-  anteToggle: 'https://assets.mixkit.co/active_storage/sfx/2562/2562-preview.mp3',
 };
 
 const useGameAudio = () => {
@@ -22,32 +21,50 @@ const useGameAudio = () => {
   const [isLoaded, setIsLoaded] = useState(false);
   const audioCache = useRef({});
 
-  // Preload all sounds with database overrides
+  const audioReadyRef = useRef(false);
+
+  const loadAudios = useCallback((force = false) => {
+    if (audioReadyRef.current && !force) return;
+    audioReadyRef.current = true;
+
+    Object.entries(SOUNDS).forEach(([key, defaultUrl]) => {
+      const customUrl = typeof window !== 'undefined' && window.customGameAudios && window.customGameAudios[key];
+      const finalUrl = customUrl || defaultUrl;
+
+      const currentAudio = audioCache.current[key];
+      if (!currentAudio || currentAudio.src !== finalUrl) {
+        const audio = new Audio(finalUrl);
+        audio.preload = 'auto';
+        audio.load();
+        audioCache.current[key] = audio;
+      }
+    });
+    setIsLoaded(true);
+  }, []);
+
+  // Defer remote audio until first interaction (faster initial load)
   useEffect(() => {
     const saved = localStorage.getItem('slot_muted') === 'true';
     setIsMuted(saved);
 
-    const loadAudios = () => {
-      Object.entries(SOUNDS).forEach(([key, defaultUrl]) => {
-        const customUrl = typeof window !== 'undefined' && window.customGameAudios && window.customGameAudios[key];
-        const finalUrl = customUrl || defaultUrl;
-        
-        const currentAudio = audioCache.current[key];
-        if (!currentAudio || currentAudio.src !== finalUrl) {
-          const audio = new Audio(finalUrl);
-          audio.preload = 'auto';
-          audio.load();
-          audioCache.current[key] = audio;
-        }
-      });
-      setIsLoaded(true);
+    const primeAudio = () => {
+      loadAudios();
+      window.removeEventListener('pointerdown', primeAudio);
+      window.removeEventListener('keydown', primeAudio);
     };
 
-    loadAudios();
+    const onConfigLoaded = () => loadAudios(true);
 
-    window.addEventListener('gameConfigLoaded', loadAudios);
-    return () => window.removeEventListener('gameConfigLoaded', loadAudios);
-  }, []);
+    window.addEventListener('pointerdown', primeAudio, { once: true });
+    window.addEventListener('keydown', primeAudio, { once: true });
+    window.addEventListener('gameConfigLoaded', onConfigLoaded);
+
+    return () => {
+      window.removeEventListener('pointerdown', primeAudio);
+      window.removeEventListener('keydown', primeAudio);
+      window.removeEventListener('gameConfigLoaded', onConfigLoaded);
+    };
+  }, [loadAudios]);
 
   const bonusThemeRef = useRef(null);
 
@@ -133,7 +150,7 @@ const useGameAudio = () => {
     toggleMute,
     playStoneTumble,
     playSparkleWin: () => playSound('sparkleWin'),
-    playZeusLightning: () => playSound('zeusLightning'),
+    playLightningHit: () => playSound('lightningHit'),
     playEpicDrop: () => playSound('epicDrop'),
     playBigWin: () => playSound('bigWin', { volume: 0.8 }),
     playMegaWin: () => playSound('megaWin'),

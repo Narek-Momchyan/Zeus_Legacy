@@ -61,7 +61,8 @@ const Symbol = ({ id, uid = 'x', className = '' }) => {
       <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
          <img 
             src={asset.src || asset} 
-            alt={id} 
+            alt={id}
+            loading="eager"
             style={{
               width: '120%', // Slightly larger to compensate for transparent padding in images
               height: '120%',
@@ -137,4 +138,4 @@ const MultiplierSymbol = ({ value, color, uid }) => {
   );
 };
 
-export default Symbol;
+export default React.memo(Symbol);

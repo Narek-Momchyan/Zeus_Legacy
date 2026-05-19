@@ -31,19 +31,23 @@ const MultiplierBadge = ({ multiplier, className = '' }) => {
         display: 'flex', alignItems: 'center', gap: 4,
         boxShadow: `0 0 12px ${color}44, inset 0 1px 0 rgba(255,255,255,0.1)`,
       }}>
-        <span style={{
-          fontFamily: "'Outfit', monospace",
-          fontWeight: 900, fontSize: '1.1rem',
-          letterSpacing: '-0.02em', fontStyle: 'italic',
-          color: color,
-          filter: `drop-shadow(0 0 6px ${color})`,
-        }}>
+        <span
+          className="multiplier-badge-text"
+          style={{
+            fontFamily: "'Outfit', monospace",
+            fontWeight: 900,
+            letterSpacing: '-0.02em', fontStyle: 'italic',
+            color: color,
+            filter: `drop-shadow(0 0 6px ${color})`,
+          }}
+        >
           ×{multiplier}
         </span>
         <motion.span
+          className="multiplier-badge-star"
           animate={{ opacity: [0.4, 1, 0.4] }}
           transition={{ duration: 1.2, repeat: Infinity }}
-          style={{ fontSize: 12, lineHeight: 1 }}
+          style={{ lineHeight: 1 }}
         >✦</motion.span>
       </div>
     </motion.div>

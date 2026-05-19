@@ -12,7 +12,7 @@ from decimal import Decimal
 import logging
 
 from services.game_engine_service import GameEngineService
-from .models import UserWallet, GameLog
+from .models import UserWallet, GameLog, ProgressiveJackpot
 
 logger = logging.getLogger('game_events')
 
@@ -32,27 +32,25 @@ class SpinView(APIView):
             
             # 2. Parse request data
             bet_amount = Decimal(str(request.data.get('bet_amount', '1.00')))
-            is_free_spin = request.data.get('is_free_spin', False)
             is_buy_bonus = request.data.get('is_buy_bonus', False)
             is_ante_bet = request.data.get('is_ante_bet', False)
-            current_multiplier = float(request.data.get('global_multiplier', 0.0))
 
             # 3. Validation
-            if not is_free_spin:
-                if bet_amount < Decimal('0.20') or bet_amount > Decimal('100.00'):
-                    return Response({"error": "Invalid bet amount ($0.20 - $100)"}, status=400)
+            if bet_amount < Decimal('0.20') or bet_amount > Decimal('100.00'):
+                return Response({"error": "Invalid bet amount ($0.20 - $100)"}, status=400)
 
             # 4. Execute via Secure Service
             from services.betting_service import BettingService, BettingError, InsufficientFunds
             
+            # Ensure jackpot singleton exists
+            ProgressiveJackpot.get_solo()
+            
             try:
                 spin_result = BettingService.execute_spin_transaction(
                     user=user,
-                    bet_amount=bet_amount,
-                    is_free_spin=is_free_spin,
+                    requested_bet_amount=bet_amount,
                     is_buy_bonus=is_buy_bonus,
-                    is_ante_bet=is_ante_bet,
-                    current_multiplier=current_multiplier
+                    is_ante_bet=is_ante_bet
                 )
                 
                 # Update cache
@@ -78,7 +76,12 @@ class BalanceView(APIView):
         if not user or user.is_anonymous:
             user, _ = User.objects.get_or_create(username="dev_player")
         wallet, _ = UserWallet.objects.get_or_create(user=user)
-        return Response({"balance": float(wallet.balance)}, status=200)
+        return Response({
+            "balance": float(wallet.balance),
+            "free_spins_left": wallet.free_spins_left,
+            "current_multiplier": wallet.current_multiplier,
+            "free_spin_bet_amount": float(wallet.free_spin_bet_amount)
+        }, status=200)
 
 
 from .models import Symbol, GameAudio
@@ -184,4 +187,39 @@ class GameConfigView(APIView):
         return Response({
             "symbols": symbols,
             "audios": audios
+        }, status=200)
+
+
+class JackpotView(APIView):
+    """Returns the current progressive jackpot pool values."""
+    def get(self, request):
+        jp = ProgressiveJackpot.get_solo()
+        return Response({
+            "mini":  float(jp.mini_pool),
+            "minor": float(jp.minor_pool),
+            "major": float(jp.major_pool),
+            "grand": float(jp.grand_pool),
+        }, status=200)
+
+
+class ResetWalletView(APIView):
+    """Resets the user wallet to base game state with zero free spins and $100,000 balance."""
+    def post(self, request):
+        user = request.user
+        if not user or user.is_anonymous:
+            user, _ = User.objects.get_or_create(username="dev_player")
+        wallet, _ = UserWallet.objects.get_or_create(user=user)
+        wallet.free_spins_left = 0
+        wallet.current_multiplier = 1.0
+        wallet.free_spin_bet_amount = Decimal('0.00')
+        wallet.save()
+        
+        # Clear cache
+        cache_key = f"user_balance_{user.id}"
+        cache.delete(cache_key)
+        
+        return Response({
+            "balance": float(wallet.balance),
+            "free_spins_left": wallet.free_spins_left,
+            "current_multiplier": wallet.current_multiplier
         }, status=200)

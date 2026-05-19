@@ -113,7 +113,7 @@ const BonusTrigger = ({ onComplete }) => {
           className="panel-label"
           style={{ marginTop: 12, color: 'rgba(200,140,255,0.45)' }}
         >
-          Zeus blesses you with fortune!
+          Legacy blesses you with fortune!
         </motion.p>
 
         {/* Start button */}

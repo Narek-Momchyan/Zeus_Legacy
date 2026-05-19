@@ -21,7 +21,7 @@ export const spinRequest = async (payload = {}) => {
 export const fetchBalance = async () => {
   try {
     const response = await apiClient.get('/api/balance/');
-    return response.data.balance;
+    return response.data;
   } catch (error) {
     console.error('API Error:', error.response?.data || error.message);
     throw error;
@@ -38,8 +38,29 @@ export const fetchGameConfig = async () => {
   }
 };
 
+export const fetchJackpot = async () => {
+  try {
+    const response = await apiClient.get('/api/jackpot/');
+    return response.data;
+  } catch (error) {
+    return null;
+  }
+};
+
+export const resetWallet = async () => {
+  try {
+    const response = await apiClient.post('/api/reset-wallet/');
+    return response.data;
+  } catch (error) {
+    console.error('API Error resetting wallet:', error.response?.data || error.message);
+    return null;
+  }
+};
+
 export default {
   spinRequest,
   fetchBalance,
   fetchGameConfig,
+  fetchJackpot,
+  resetWallet,
 };

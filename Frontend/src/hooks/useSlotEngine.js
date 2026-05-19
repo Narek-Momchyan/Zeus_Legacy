@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import useGameAudio from './useGameAudio';
-import { spinRequest, fetchBalance, fetchGameConfig } from '../api/gameApi';
+import { spinRequest, fetchBalance, fetchGameConfig, fetchJackpot, resetWallet } from '../api/gameApi';
 
 // ═══════════════════════════════════════════════════════════════════════════
 //  CONSTANTS
@@ -43,7 +43,7 @@ const delay = (ms) => new Promise(res => setTimeout(res, ms));
 /** Converts backend string grid to frontend object grid with UIDs */
 function mapGrid(backendGrid) {
   if (!backendGrid) return [];
-  return backendGrid.map(row => 
+  return backendGrid.map(row =>
     row.map(sym => ({
       sym,
       uid: Math.random().toString(36).substr(2, 9)
@@ -57,19 +57,20 @@ function mapGrid(backendGrid) {
 
 const useSlotEngine = () => {
   // ── Grid ──────────────────────────────────────────────────────────────
-  const [grid, setGrid]               = useState(() => mapGrid(Array.from({ length: ROWS }, () => Array(COLS).fill('blue_gem'))));
+  const [grid, setGrid] = useState(() => mapGrid(Array.from({ length: ROWS }, () => Array(COLS).fill('blue_gem'))));
   const [winningCoords, setWinningCoords] = useState([]);
 
   // ── Spin state ────────────────────────────────────────────────────────
-  const [isSpinning, setIsSpinning]   = useState(false);
-  const isSpinningRef                 = useRef(false);
-  const isSkippingRef                 = useRef(false);
+  const [isSpinning, setIsSpinning] = useState(false);
+  const isSpinningRef = useRef(false);
+  const isSkippingRef = useRef(false);
   const [tumbleCount, setTumbleCount] = useState(0);
-  const [speedMode, setSpeedMode]     = useState('normal');
-  const speedModeRef                  = useRef('normal');
+  const [speedMode, setSpeedMode] = useState('normal');
+  const speedModeRef = useRef('normal');
+  const [autoSpinsLeft, setAutoSpinsLeft] = useState(0);
 
   // ── Win amounts ───────────────────────────────────────────────────────
-  const [totalWin, setTotalWin]         = useState(0);   // accumulates during tumble
+  const [totalWin, setTotalWin] = useState(0);   // accumulates during tumble
   const [lastRoundWin, setLastRoundWin] = useState(0);   // shown after spin
   const [lastWinAmount, setLastWinAmount] = useState(0); // for modal
   const [showWinModal, setShowWinModal] = useState(false);
@@ -77,61 +78,89 @@ const useSlotEngine = () => {
   // ── Balance & Bet ─────────────────────────────────────────────────────
   const [balance, setBalance] = useState(STARTING_BALANCE);
   const [isBalanceLoading, setIsBalanceLoading] = useState(true);
-  const [betIdx, setBetIdx]   = useState(DEFAULT_BET_IDX);
+  const [betIdx, setBetIdx] = useState(DEFAULT_BET_IDX);
   const betAmount = BET_STEPS[betIdx];
-  const isMinBet  = betIdx === 0;
-  const isMaxBet  = betIdx === BET_STEPS.length - 1;
-  const raiseBet  = () => { if (!isMaxBet && !isSpinning) setBetIdx(i => i + 1); };
-  const lowerBet  = () => { if (!isMinBet && !isSpinning) setBetIdx(i => i - 1); };
+  const isMinBet = betIdx === 0;
+  const isMaxBet = betIdx === BET_STEPS.length - 1;
+  const raiseBet = () => { if (!isMaxBet && !isSpinning) setBetIdx(i => i + 1); };
+  const lowerBet = () => { if (!isMinBet && !isSpinning) setBetIdx(i => i - 1); };
 
   // ── Multipliers ───────────────────────────────────────────────────────
   const [activeMultipliers, setActiveMultipliers] = useState([]);
-  const [globalMultiplier, setGlobalMultiplier]   = useState(1);
+  const [globalMultiplier, setGlobalMultiplier] = useState(1);
   const globalMultRef = useRef(1);
 
   // ── Bonus round ───────────────────────────────────────────────────────
-  const [isBonusMode, setIsBonusMode]         = useState(false);
+  const [isBonusMode, setIsBonusMode] = useState(false);
   const [isAnteBetActive, setIsAnteBetActive] = useState(false);
-  const [freeSpinsLeft, setFreeSpinsLeft]     = useState(0);
+  const [freeSpinsLeft, setFreeSpinsLeft] = useState(0);
   const [showBonusTrigger, setShowBonusTrigger] = useState(false);
   const [showBonusSummary, setShowBonusSummary] = useState(false);
-  const [bonusTotalWin, setBonusTotalWin]     = useState(0);
+  const [bonusTotalWin, setBonusTotalWin] = useState(0);
   const isBonusRef = useRef(false);
+
+  // ── Jackpot state ─────────────────────────────────────────────────────
+  const [jackpotPools, setJackpotPools] = useState({ mini: 100, minor: 500, major: 5000, grand: 50000 });
+  const [jackpotWon, setJackpotWon] = useState(null); // { amount, tier }
 
   // ── FX ────────────────────────────────────────────────────────────────
   const [isLightningActive, setIsLightningActive] = useState(false);
-  const [shouldShake, setShouldShake]   = useState(false);
+  const [shouldShake, setShouldShake] = useState(false);
   const [showParticles, setShowParticles] = useState(false);
 
   // ── Audio ─────────────────────────────────────────────────────────────
   const {
     isMuted, isLoaded, toggleMute,
-    playStoneTumble, playSparkleWin, playZeusLightning, playEpicDrop, playBigWin,
+    playStoneTumble, playSparkleWin, playLightningHit, playEpicDrop, playBigWin,
     playMegaWin, playUltraWin, playAnteToggle, playSymbolExplode, playCollectMultiplier,
     playWinTick, playScatterImpact, startBonusTheme, stopBonusTheme,
   } = useGameAudio();
 
   // Keep refs in sync with state so async callbacks see latest values
-  useEffect(() => { isBonusRef.current    = isBonusMode;    }, [isBonusMode]);
+  useEffect(() => { isBonusRef.current = isBonusMode; }, [isBonusMode]);
   useEffect(() => { globalMultRef.current = globalMultiplier; }, [globalMultiplier]);
-  useEffect(() => { speedModeRef.current  = speedMode; }, [speedMode]);
-  
+  useEffect(() => { speedModeRef.current = speedMode; }, [speedMode]);
+
   // Fetch initial balance and game configuration
   useEffect(() => {
     fetchBalance()
-      .then(setBalance)
-      .catch(() => {})
+      .then(data => {
+        setBalance(data.balance);
+        if (data.free_spins_left > 0) {
+          setIsBonusMode(true);
+          setFreeSpinsLeft(data.free_spins_left);
+          setGlobalMultiplier(data.current_multiplier);
+          startBonusTheme();
+          
+          if (typeof window !== 'undefined') {
+            const savedBonusWin = localStorage.getItem('slot_bonus_total_win');
+            if (savedBonusWin) {
+              setBonusTotalWin(parseFloat(savedBonusWin));
+            }
+          }
+        } else {
+          if (typeof window !== 'undefined') {
+            localStorage.removeItem('slot_bonus_total_win');
+          }
+        }
+      })
+      .catch(() => { })
       .finally(() => setIsBalanceLoading(false));
 
     fetchGameConfig()
       .then(config => {
         if (config) {
-          // Store symbols
+          // Store symbols and PRELOAD them
           if (config.symbols) {
             const symRegistry = {};
             config.symbols.forEach(s => {
               if (s.image_url) {
                 symRegistry[s.symbol_id] = s.image_url;
+                // Preload to prevent "late rendering" on first spin
+                if (typeof window !== 'undefined') {
+                  const img = new Image();
+                  img.src = s.image_url;
+                }
               }
             });
             window.customSymbolImages = symRegistry;
@@ -144,7 +173,13 @@ const useSlotEngine = () => {
                 audioRegistry[a.audio_id] = a.audio_url;
               }
             });
+            if (audioRegistry.Lightning && !audioRegistry.lightningHit) {
+              audioRegistry.lightningHit = audioRegistry.Lightning;
+            }
             window.customGameAudios = audioRegistry;
+          }
+          if (config.hero_image_url) {
+            window.customHeroImage = config.hero_image_url;
           }
           // Dispatch loaded event
           window.dispatchEvent(new Event('gameConfigLoaded'));
@@ -152,6 +187,17 @@ const useSlotEngine = () => {
       })
       .catch(err => console.error("Error loading game config:", err));
   }, []);
+
+  // ── Jackpot polling (every 3s) ────────────────────────────────────────────
+  useEffect(() => {
+    fetchJackpot().then(data => { if (data) setJackpotPools(data); });
+    const interval = setInterval(() => {
+      fetchJackpot().then(data => { if (data) setJackpotPools(data); });
+    }, 3000);
+    return () => clearInterval(interval);
+  }, []);
+
+
 
   // ─────────────────────────────────────────────────────────────────────
   //  SPIN (Backend Driven)
@@ -161,7 +207,7 @@ const useSlotEngine = () => {
       isSkippingRef.current = true;
       return;
     }
-    
+
     const isBuyBonus = options.isBuyBonus === true;
     const isFreeSpin = isBonusRef.current;
 
@@ -177,6 +223,11 @@ const useSlotEngine = () => {
     setShouldShake(false);
     setShowParticles(false);
 
+    if (!isFreeSpin) {
+      setGlobalMultiplier(1);
+      globalMultRef.current = 1;
+    }
+
     // Smart delay that skips instantly if isSkippingRef is true
     const smartDelay = async (ms) => {
       const start = Date.now();
@@ -190,24 +241,41 @@ const useSlotEngine = () => {
       // 1. Request spin from Backend
       const result = await spinRequest({
         bet_amount: betAmount,
-        is_free_spin: isFreeSpin,
         is_buy_bonus: isBuyBonus,
-        is_ante_bet: isAnteBetActive,
-        global_multiplier: globalMultRef.current
+        is_ante_bet: isAnteBetActive
       });
 
       // 2. Playback Backend Result
       // Initial Grid
       const initialGrid = mapGrid(result.initial_grid);
       setGrid(initialGrid);
-      
+
       // Check for scatters in initial grid
       if (result.initial_grid.flat().includes('scatter')) {
         setTimeout(() => playScatterImpact(), 300);
       }
-      
+
       const speed = SPEED_CONFIGS[speedModeRef.current];
-      await smartDelay(speed.initialDelay);
+      
+      // Calculate Teaser Delay for Scatter tension
+      let maxTeaserDelayMs = 0;
+      if (speedModeRef.current === 'normal' && !isBuyBonus && !isFreeSpin) {
+        const scattersInCol = [0,0,0,0,0,0];
+        result.initial_grid.forEach(row => {
+          row.forEach((cell, c) => {
+            if (cell === 'scatter') scattersInCol[c]++;
+          });
+        });
+        let sCount = 0;
+        for (let c=0; c<6; c++) {
+          if (sCount >= 3) {
+            maxTeaserDelayMs += 2500; // 2.5s extra delay per teasing column
+          }
+          sCount += scattersInCol[c];
+        }
+      }
+
+      await smartDelay(speed.initialDelay + maxTeaserDelayMs);
 
       // Tumbles
       let currentTotalWin = 0;
@@ -222,76 +290,94 @@ const useSlotEngine = () => {
 
           // Multiplier handling
           if (step.multiplier) {
-            playZeusLightning();
+            playLightningHit();
             playCollectMultiplier();
             setIsLightningActive(true);
             setTimeout(() => setIsLightningActive(false), 800);
             setActiveMultipliers(prev => [...prev, step.multiplier]);
+            setGlobalMultiplier(prev => prev + step.multiplier);
           }
 
           currentTotalWin += step.payout;
           setTotalWin(currentTotalWin);
 
           // Real casino wait: Let the player SEE the win
-          await smartDelay(speed.winShowDelay); 
+          await smartDelay(speed.winShowDelay);
 
           // Clear wins and drop new symbols
           setWinningCoords([]);
           setGrid(mapGrid(step.next_grid));
-          
+
           if (step.next_grid.flat().includes('scatter')) {
-             setTimeout(() => playScatterImpact(), 300);
+            setTimeout(() => playScatterImpact(), 300);
           }
 
-          await smartDelay(speed.cascadeDelay); 
+          await smartDelay(speed.cascadeDelay);
         }
       }
 
       await smartDelay(speed.finalPause); // Final pause before balance sync
 
       // 3. Finalize Spin
-      if (isFreeSpin) {
-        setGlobalMultiplier(result.global_multiplier_value);
-        globalMultRef.current = result.global_multiplier_value;
-      } else {
-        // Base game: Multiplier resets after spin
-        setGlobalMultiplier(1);
-        globalMultRef.current = 1;
-      }
+      // Sync State from backend exactly
+      setGlobalMultiplier(result.current_multiplier);
+      globalMultRef.current = result.current_multiplier;
+      const wasFreeSpin = result.is_free_spin;
       setLastRoundWin(result.total_win);
       setBalance(result.current_balance); // Sync with backend balance
       setTotalWin(result.total_win);
 
-      if (isFreeSpin) {
-        setFreeSpinsLeft(prev => {
-          const next = prev - 1;
-          if (next <= 0) {
-            setBonusTotalWin(totalWin + result.total_win);
-            setTimeout(() => {
-              setShowBonusSummary(true);
-              setIsBonusMode(false);
-              stopBonusTheme();
-            }, 1500);
+      if (wasFreeSpin) {
+        setBonusTotalWin(prev => {
+          const next = prev + result.total_win;
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('slot_bonus_total_win', String(next));
           }
           return next;
         });
       }
+      
+      setFreeSpinsLeft(result.free_spins_left);
+      
+      // Handle end of free spins
+      if (wasFreeSpin && result.free_spins_left === 0) {
+        const delay = (result.total_win >= betAmount * 10) ? 9500 : 1500;
+        setTimeout(() => {
+          setShowBonusSummary(true);
+          setIsBonusMode(false);
+          stopBonusTheme();
+          if (typeof window !== 'undefined') {
+            localStorage.removeItem('slot_bonus_total_win');
+          }
+        }, delay);
+      }
 
       if (result.triggered_free_spins) {
+        setBonusTotalWin(0);
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('slot_bonus_total_win', '0');
+        }
         setIsBonusMode(true);
         setFreeSpinsLeft(15);
         setShowBonusTrigger(true);
         startBonusTheme();
       }
 
+      // Update jackpot pool from response (always)
+      if (result.jackpot_pools) {
+        setJackpotPools(result.jackpot_pools);
+      }
+
+      // Jackpot win
+      if (result.jackpot_won) {
+        setJackpotWon({ amount: result.jackpot_won, tier: result.jackpot_won_tier });
+        setBalance(result.current_balance);
+      }
+
+      // Big Win Modal
       if (result.total_win >= betAmount * 10) {
         setLastWinAmount(result.total_win);
         setShowWinModal(true);
-
-        const mult = result.total_win / betAmount;
-        if (mult >= 100) playUltraWin();
-        else if (mult >= 50) playMegaWin();
-        else playBigWin();
       }
 
     } catch (err) {
@@ -300,22 +386,30 @@ const useSlotEngine = () => {
       setIsSpinning(false);
       isSpinningRef.current = false;
     }
-  }, [betAmount, isAnteBetActive, playScatterImpact, playSymbolExplode, playSparkleWin, playZeusLightning, playCollectMultiplier, stopBonusTheme, startBonusTheme, playUltraWin, playMegaWin, playBigWin]);
+  }, [betAmount, isAnteBetActive, playScatterImpact, playSymbolExplode, playSparkleWin, playLightningHit, playCollectMultiplier, stopBonusTheme, startBonusTheme, playUltraWin, playMegaWin, playBigWin]);
+
+  // ─────────────────────────────────────────────────────────────────────
+  //  AUTOPLAY LOGIC
+  // ─────────────────────────────────────────────────────────────────────
+  useEffect(() => {
+    // If we have auto spins left, we're not spinning, not in bonus mode, and no modal is blocking...
+    if (autoSpinsLeft > 0 && !isSpinning && !isBonusMode && !showWinModal && !showBonusSummary && !showBonusTrigger) {
+      const timer = setTimeout(() => {
+        setAutoSpinsLeft(prev => prev - 1);
+        spin();
+      }, 1200); // Wait a bit before next spin
+      return () => clearTimeout(timer);
+    }
+    // Stop autoplay if we enter bonus mode or run out of funds
+    if (isBonusMode || (autoSpinsLeft > 0 && balance < betAmount && !isSpinning)) {
+      setAutoSpinsLeft(0);
+    }
+  }, [autoSpinsLeft, isSpinning, isBonusMode, showWinModal, showBonusSummary, showBonusTrigger, spin, balance, betAmount]);
+
 
   // ── Bonus Completion Check ───────────────────────────────────────────────
-  useEffect(() => {
-    if (freeSpinsLeft === 0 && isBonusMode && !isSpinning) {
-      const t = setTimeout(() => {
-        setShowBonusSummary(true);
-        setIsBonusMode(false);
-        isBonusRef.current = false;
-        setGlobalMultiplier(1);
-        globalMultRef.current = 1;
-        stopBonusTheme();
-      }, 1000);
-      return () => clearTimeout(t);
-    }
-  }, [freeSpinsLeft, isSpinning, isBonusMode, stopBonusTheme]);
+  // ── Bonus Completion Check ───────────────────────────────────────────────
+  // (Removed internal frontend free spin completion checker, handled in spin result)
 
   // ─────────────────────────────────────────────────────────────────────
   //  BUY BONUS
@@ -328,12 +422,38 @@ const useSlotEngine = () => {
     await spin({ isBuyBonus: true });
   }, [canBuyBonus, spin]);
 
+  const resetGame = useCallback(async () => {
+    if (isSpinning) return;
+    try {
+      const data = await resetWallet();
+      if (data) {
+        setIsBonusMode(false);
+        setFreeSpinsLeft(0);
+        setGlobalMultiplier(1);
+        globalMultRef.current = 1;
+        setBalance(data.balance);
+        setActiveMultipliers([]);
+        setTumbleCount(0);
+        setTotalWin(0);
+        setLastRoundWin(0);
+        setBonusTotalWin(0);
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('slot_bonus_total_win');
+        }
+        stopBonusTheme();
+      }
+    } catch (err) {
+      console.error("Error resetting wallet:", err);
+    }
+  }, [isSpinning, stopBonusTheme]);
+
   // ─────────────────────────────────────────────────────────────────────
   return {
     grid,
     winningCoords,
     isSpinning,
     spin,
+    resetGame,
     tumbleCount,
     totalWin,
     lastRoundWin,
@@ -371,6 +491,11 @@ const useSlotEngine = () => {
     toggleMute,
     speedMode,
     setSpeedMode,
+    autoSpinsLeft,
+    setAutoSpinsLeft,
+    jackpotPools,
+    jackpotWon,
+    setJackpotWon,
   };
 };
 

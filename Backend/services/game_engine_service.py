@@ -461,6 +461,7 @@ class GameEngineService:
         scatters_paid = False
         triggered_free_spins = False
         any_multiplier_collected = False
+        is_max_win = False
         
         while tumble_count < max_tumbles:
             result = self.evaluate_wins(current_grid)
@@ -498,6 +499,7 @@ class GameEngineService:
             if current_sequence_win >= 1000.0:
                 current_sequence_win = 1000.0
                 max_win_capped = True
+                is_max_win = True
 
             next_grid = self.apply_tumble(
                 current_grid, 
@@ -544,5 +546,6 @@ class GameEngineService:
             "triggered_free_spins": triggered_free_spins,
             "free_spins_left": 15 if triggered_free_spins else 0,
             "global_multiplier_value": global_mult,
-            "is_free_spin": is_free_spin
+            "is_free_spin": is_free_spin,
+            "is_max_win": is_max_win
         }

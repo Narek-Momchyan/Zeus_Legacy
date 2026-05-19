@@ -4,7 +4,7 @@ import { motion, useSpring, useTransform } from 'framer-motion';
 const AnimatedNumber = ({ value, precision = 2, className = "" }) => {
   const spring = useSpring(value, { mass: 0.8, stiffness: 75, damping: 15 });
   const display = useTransform(spring, (current) => 
-    current.toLocaleString(undefined, {
+    current.toLocaleString('en-US', {
       minimumFractionDigits: precision,
       maximumFractionDigits: precision,
     })

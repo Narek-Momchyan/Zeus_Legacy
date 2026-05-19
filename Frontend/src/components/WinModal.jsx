@@ -141,7 +141,7 @@ const WinModal = ({ amount, onClose, betAmount }) => {
             filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.5))',
           }}
         >
-          ${displayValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          ${displayValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
         </motion.div>
 
         {/* Collect button */}

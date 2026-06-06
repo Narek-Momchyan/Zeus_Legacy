@@ -130,7 +130,9 @@ const useSlotEngine = () => {
 
     const connectWS = () => {
       try {
-        const ws = new WebSocket('ws://localhost:8000/ws/game/');
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+        const wsUrl = apiUrl.replace(/^http/, 'ws') + '/ws/game/';
+        const ws = new WebSocket(wsUrl);
         wsRef.current = ws;
         
         ws.onopen = () => {

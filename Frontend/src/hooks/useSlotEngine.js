@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import useGameAudio from './useGameAudio';
-import { spinRequest, fetchBalance, fetchGameConfig, fetchJackpot, resetWallet } from '../api/gameApi';
+import { fetchGameConfig, resetWallet } from '../api/gameApi';
 
 // ═══════════════════════════════════════════════════════════════════════════
 //  CONSTANTS
@@ -62,8 +62,11 @@ const useSlotEngine = () => {
 
   // ── Spin state ────────────────────────────────────────────────────────
   const [isSpinning, setIsSpinning] = useState(false);
+  const [isConnected, setIsConnected] = useState(false);
   const isSpinningRef = useRef(false);
   const isSkippingRef = useRef(false);
+  const wsRef = useRef(null);
+  const spinResolverRef = useRef(null);
   const [tumbleCount, setTumbleCount] = useState(0);
   const [speedMode, setSpeedMode] = useState('normal');
   const speedModeRef = useRef('normal');
@@ -121,80 +124,174 @@ const useSlotEngine = () => {
   useEffect(() => { globalMultRef.current = globalMultiplier; }, [globalMultiplier]);
   useEffect(() => { speedModeRef.current = speedMode; }, [speedMode]);
 
-  // Fetch initial balance and game configuration
+  // ── WebSocket Connection & Game Config ────────────────────────────────
   useEffect(() => {
-    fetchBalance()
-      .then(data => {
-        setBalance(data.balance);
-        if (data.free_spins_left > 0) {
-          setIsBonusMode(true);
-          setFreeSpinsLeft(data.free_spins_left);
-          setGlobalMultiplier(data.current_multiplier);
-          startBonusTheme();
-          
-          if (typeof window !== 'undefined') {
-            const savedBonusWin = localStorage.getItem('slot_bonus_total_win');
-            if (savedBonusWin) {
-              setBonusTotalWin(parseFloat(savedBonusWin));
-            }
-          }
-        } else {
-          if (typeof window !== 'undefined') {
-            localStorage.removeItem('slot_bonus_total_win');
-          }
-        }
-      })
-      .catch(() => { })
-      .finally(() => setIsBalanceLoading(false));
+    let jackpotInterval = null;
 
-    fetchGameConfig()
-      .then(config => {
-        if (config) {
-          // Store symbols and PRELOAD them
-          if (config.symbols) {
-            const symRegistry = {};
-            config.symbols.forEach(s => {
-              if (s.image_url) {
-                symRegistry[s.symbol_id] = s.image_url;
-                // Preload to prevent "late rendering" on first spin
+    const connectWS = () => {
+      try {
+        const ws = new WebSocket('ws://localhost:8000/ws/game/');
+        wsRef.current = ws;
+        
+        ws.onopen = () => {
+          console.log('[WS] Connected to game socket');
+          if (ws.readyState === WebSocket.OPEN) {
+            setIsConnected(true);
+            ws.send(JSON.stringify({ action: 'balance' }));
+            ws.send(JSON.stringify({ action: 'jackpot' }));
+          }
+        };
+
+        ws.onmessage = (event) => {
+          try {
+            const response = JSON.parse(event.data);
+            console.log('[WS] Received:', response.action || response.error);
+            
+            // Reject any pending spin if there's a top-level error (like 'Unknown action')
+            if (response.error && spinResolverRef.current) {
+              spinResolverRef.current.reject(new Error(response.error));
+              spinResolverRef.current = null;
+              return;
+            }
+            
+            if (response.action === 'balance_result') {
+              const data = response.data;
+              console.log('[WS] Balance data:', data);
+              if (data && data.balance !== undefined) {
+                setBalance(data.balance);
+              }
+              if (data && data.free_spins_left > 0) {
+                setIsBonusMode(true);
+                setFreeSpinsLeft(data.free_spins_left);
+                setGlobalMultiplier(data.current_multiplier);
+                startBonusTheme();
+                
                 if (typeof window !== 'undefined') {
-                  const img = new Image();
-                  img.src = s.image_url;
+                  const savedBonusWin = localStorage.getItem('slot_bonus_total_win');
+                  if (savedBonusWin) {
+                    setBonusTotalWin(parseFloat(savedBonusWin));
+                  }
+                }
+              } else {
+                if (typeof window !== 'undefined') {
+                  localStorage.removeItem('slot_bonus_total_win');
                 }
               }
-            });
-            window.customSymbolImages = symRegistry;
-          }
-          // Store audios
-          if (config.audios) {
-            const audioRegistry = {};
-            config.audios.forEach(a => {
-              if (a.audio_url) {
-                audioRegistry[a.audio_id] = a.audio_url;
+              setIsBalanceLoading(false);
+            } else if (response.action === 'jackpot_result') {
+              if (response.data) {
+                setJackpotPools(response.data);
               }
-            });
-            if (audioRegistry.Lightning && !audioRegistry.lightningHit) {
-              audioRegistry.lightningHit = audioRegistry.Lightning;
+            } else if (response.action === 'spin_result') {
+              // Resolve the pending spin promise
+              if (spinResolverRef.current) {
+                spinResolverRef.current.resolve(response);
+                spinResolverRef.current = null;
+              }
+            } else if (response.action === 'spin_error') {
+              // Reject the pending spin promise
+              if (spinResolverRef.current) {
+                spinResolverRef.current.reject(new Error(response.error || 'Spin failed'));
+                spinResolverRef.current = null;
+              }
             }
-            window.customGameAudios = audioRegistry;
+          } catch (e) {
+            console.warn('[WS] Error parsing message:', e);
           }
-          if (config.hero_image_url) {
-            window.customHeroImage = config.hero_image_url;
-          }
-          // Dispatch loaded event
-          window.dispatchEvent(new Event('gameConfigLoaded'));
-        }
-      })
-      .catch(err => console.error("Error loading game config:", err));
-  }, []);
+        };
 
-  // ── Jackpot polling (every 3s) ────────────────────────────────────────────
-  useEffect(() => {
-    fetchJackpot().then(data => { if (data) setJackpotPools(data); });
-    const interval = setInterval(() => {
-      fetchJackpot().then(data => { if (data) setJackpotPools(data); });
+        ws.onerror = (err) => {
+          console.warn('[WS] Connection error:', err);
+          setIsConnected(false);
+          setIsBalanceLoading(false); // don't hang UI
+          // Reject any pending spin on WS error
+          if (spinResolverRef.current) {
+            spinResolverRef.current.reject(new Error('WebSocket error'));
+            spinResolverRef.current = null;
+          }
+        };
+
+        ws.onclose = () => {
+          console.log('[WS] Disconnected');
+          setIsConnected(false);
+          wsRef.current = null;
+          // Reject any pending spin on disconnect
+          if (spinResolverRef.current) {
+            spinResolverRef.current.reject(new Error('WebSocket disconnected'));
+            spinResolverRef.current = null;
+          }
+          // Auto-reconnect logic
+          setTimeout(connectWS, 3000);
+        };
+      } catch (err) {
+        console.warn('[WS] Setup error:', err);
+        setIsBalanceLoading(false);
+      }
+    };
+
+    connectWS();
+
+    // Poll jackpot every 3 seconds via WebSocket
+    jackpotInterval = setInterval(() => {
+      const ws = wsRef.current;
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ action: 'jackpot' }));
+      }
     }, 3000);
-    return () => clearInterval(interval);
+
+    const loadConfig = () => {
+      fetchGameConfig()
+        .then(config => {
+          if (config) {
+            // Store symbols and PRELOAD them
+            if (config.symbols) {
+              const symRegistry = {};
+              config.symbols.forEach(s => {
+                if (s.image_url) {
+                  symRegistry[s.symbol_id] = s.image_url;
+                  // Preload to prevent "late rendering" on first spin
+                  if (typeof window !== 'undefined') {
+                    const img = new Image();
+                    img.src = s.image_url;
+                  }
+                }
+              });
+              window.customSymbolImages = symRegistry;
+            }
+            // Store audios
+            if (config.audios) {
+              const audioRegistry = {};
+              config.audios.forEach(a => {
+                if (a.audio_url) {
+                  audioRegistry[a.audio_id] = a.audio_url;
+                }
+              });
+              if (audioRegistry.Lightning && !audioRegistry.lightningHit) {
+                audioRegistry.lightningHit = audioRegistry.Lightning;
+              }
+              window.customGameAudios = audioRegistry;
+            }
+            if (config.hero_image_url) {
+              window.customHeroImage = config.hero_image_url;
+            }
+            // Dispatch loaded event
+            window.dispatchEvent(new Event('gameConfigLoaded'));
+          } else {
+            setTimeout(loadConfig, 3000);
+          }
+        })
+        .catch(err => {
+          console.warn("Error loading game config:", err);
+          setTimeout(loadConfig, 3000);
+        });
+    };
+
+    loadConfig();
+
+    return () => {
+      if (jackpotInterval) clearInterval(jackpotInterval);
+      if (wsRef.current) wsRef.current.close();
+    };
   }, []);
 
 
@@ -215,7 +312,8 @@ const useSlotEngine = () => {
     setIsSpinning(true);
     isSkippingRef.current = false;
 
-    // Reset UI for new spin
+    // Reset UI for new spin INSTANTLY for better responsiveness
+    setGrid([]); 
     setWinningCoords([]);
     setActiveMultipliers([]);
     setTotalWin(0);
@@ -238,11 +336,29 @@ const useSlotEngine = () => {
     };
 
     try {
-      // 1. Request spin from Backend
-      const result = await spinRequest({
-        bet_amount: betAmount,
-        is_buy_bonus: isBuyBonus,
-        is_ante_bet: isAnteBetActive
+      // 1. Request spin from Backend via WebSocket
+      const ws = wsRef.current;
+      if (!ws || ws.readyState !== WebSocket.OPEN) {
+        console.warn('WebSocket not connected, spin ignored.');
+        setAutoSpinsLeft(0);
+        return;
+      }
+
+      const result = await new Promise((resolve, reject) => {
+        spinResolverRef.current = { resolve, reject };
+        ws.send(JSON.stringify({
+          action: 'spin',
+          bet_amount: betAmount,
+          is_buy_bonus: isBuyBonus,
+          is_ante_bet: isAnteBetActive
+        }));
+        // Timeout safety: reject after 15 seconds
+        setTimeout(() => {
+          if (spinResolverRef.current) {
+            spinResolverRef.current.reject(new Error('Spin request timed out'));
+            spinResolverRef.current = null;
+          }
+        }, 15000);
       });
 
       // 2. Playback Backend Result
@@ -381,7 +497,7 @@ const useSlotEngine = () => {
       }
 
     } catch (err) {
-      console.error("Spin failed:", err);
+      console.warn("Spin failed:", err);
     } finally {
       setIsSpinning(false);
       isSpinningRef.current = false;
@@ -394,10 +510,16 @@ const useSlotEngine = () => {
   useEffect(() => {
     // If we have auto spins left, we're not spinning, not in bonus mode, and no modal is blocking...
     if (autoSpinsLeft > 0 && !isSpinning && !isBonusMode && !showWinModal && !showBonusSummary && !showBonusTrigger) {
+      
+      let waitTime = 1200;
+      if (speedModeRef.current === 'turbo') waitTime = 400;
+      if (speedModeRef.current === 'instant') waitTime = 100;
+
       const timer = setTimeout(() => {
         setAutoSpinsLeft(prev => prev - 1);
         spin();
-      }, 1200); // Wait a bit before next spin
+      }, waitTime); // Dynamic wait based on speed mode
+      
       return () => clearTimeout(timer);
     }
     // Stop autoplay if we enter bonus mode or run out of funds
@@ -443,7 +565,7 @@ const useSlotEngine = () => {
         stopBonusTheme();
       }
     } catch (err) {
-      console.error("Error resetting wallet:", err);
+      console.warn("Error resetting wallet:", err);
     }
   }, [isSpinning, stopBonusTheme]);
 
@@ -496,6 +618,7 @@ const useSlotEngine = () => {
     jackpotPools,
     jackpotWon,
     setJackpotWon,
+    isConnected,
   };
 };
 

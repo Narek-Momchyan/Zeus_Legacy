@@ -15,6 +15,7 @@ const JackpotWinOverlay = dynamic(() => import('../components/JackpotWinOverlay'
 import JackpotPanel from '../components/JackpotPanel'
 import AnimatedNumber from '../components/AnimatedNumber'
 import Particles from '../components/Particles'
+import Loading from './loading'
 
 function App() {
   const {
@@ -32,7 +33,11 @@ function App() {
     isMuted, isLoaded, toggleMute, playAnteToggle,
     speedMode, setSpeedMode, autoSpinsLeft, setAutoSpinsLeft,
     jackpotPools, jackpotWon, setJackpotWon,
+    isConnected,
   } = useSlotEngine()
+
+  const [showGame, setShowGame] = React.useState(false);
+  const isDataReady = isLoaded && !isBalanceLoading && isConnected;
 
   const displayedBetAmount = isAnteBetActive ? betAmount * 1.25 : betAmount;
 
@@ -50,6 +55,10 @@ function App() {
   const spinBtnClass = isSpinning
     ? 'btn-disabled'
     : isBonusMode ? 'btn-bonus' : 'btn-spin'
+
+  if (!showGame) {
+    return <Loading isReady={isDataReady} onComplete={() => setShowGame(true)} />
+  }
 
   return (
     <div className={`app-container ${shouldShake ? 'shake' : ''} ${isBonusMode ? 'bonus-mode' : ''}`}>

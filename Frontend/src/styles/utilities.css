@@ -1,0 +1,78 @@
+/* ── Cinzel heading ── */
+.font-olympus {
+  font-family: 'Cinzel Decorative', serif;
+  letter-spacing: 0.07em;
+}
+
+.font-cinzel {
+  font-family: 'Cinzel', serif;
+}
+
+/* ── Gold text ── */
+.text-gold {
+  background: linear-gradient(135deg, #fff8b0 0%, #f5d060 30%, #d4a012 70%, #8a5e00 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  filter: drop-shadow(0 0 12px rgba(245, 200, 60, 0.55));
+}
+
+/* ── Glass card ── */
+.glass {
+  background: rgba(255, 255, 255, 0.035);
+  backdrop-filter: blur(18px) saturate(1.4);
+  -webkit-backdrop-filter: blur(18px) saturate(1.4);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 1.25rem;
+}
+
+/* ── Gold glow ── */
+.glow-gold {
+  box-shadow:
+    0 0 0 1px rgba(212, 160, 18, 0.18),
+    0 0 24px rgba(212, 160, 18, 0.12),
+    0 0 60px rgba(212, 160, 18, 0.06),
+    inset 0 1px 0 rgba(255, 230, 80, 0.08);
+}
+
+/* ── Purple glow (bonus) ── */
+.glow-purple {
+  box-shadow:
+    0 0 0 1px rgba(155, 80, 210, 0.3),
+    0 0 30px rgba(155, 80, 210, 0.25),
+    0 0 80px rgba(100, 15, 180, 0.15),
+    inset 0 1px 0 rgba(200, 140, 255, 0.1);
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar {
+  width: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(212, 175, 55, 0.28);
+  border-radius: 2px;
+}
+
+/* ── Divider ornament ── */
+.ornament {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: rgba(212, 175, 55, 0.35);
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+.ornament::before,
+.ornament::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(212, 175, 55, 0.3), transparent);
+}

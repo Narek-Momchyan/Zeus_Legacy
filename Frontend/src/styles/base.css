@@ -1,0 +1,65 @@
+/* ── Reset & Base ── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  font-family: 'Outfit', system-ui, sans-serif;
+  color-scheme: dark;
+  color: rgba(255, 255, 255, 0.92);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  min-height: 100vh;
+  min-width: 320px;
+  overflow-x: hidden;
+  background:
+    /* Top divine light */
+    radial-gradient(ellipse 100% 45% at 50% -5%, rgba(110, 30, 180, 0.65) 0%, transparent 70%),
+    /* Left ambient */
+    radial-gradient(ellipse 55% 50% at -5% 50%, rgba(60, 0, 120, 0.45) 0%, transparent 65%),
+    /* Right ambient */
+    radial-gradient(ellipse 55% 50% at 105% 50%, rgba(80, 0, 160, 0.35) 0%, transparent 65%),
+    /* Bottom vignette */
+    radial-gradient(ellipse 80% 40% at 50% 110%, rgba(20, 0, 60, 0.8) 0%, transparent 70%),
+    /* Base */
+    linear-gradient(180deg, #09001a 0%, #0d0022 40%, #0a0018 100%);
+}
+
+#root {
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* Base Game Background is inherited from body, but we can override it here if we want. */
+/* Bonus Mode Dynamic Background */
+.app-container.bonus-mode {
+  background:
+    /* Top angry red light */
+    radial-gradient(ellipse 100% 45% at 50% -5%, rgba(200, 10, 10, 0.7) 0%, transparent 70%),
+    /* Left ambient fire */
+    radial-gradient(ellipse 55% 50% at -5% 50%, rgba(180, 50, 0, 0.5) 0%, transparent 65%),
+    /* Right ambient fire */
+    radial-gradient(ellipse 55% 50% at 105% 50%, rgba(150, 0, 50, 0.4) 0%, transparent 65%),
+    /* Bottom vignette */
+    radial-gradient(ellipse 80% 40% at 50% 110%, rgba(40, 0, 0, 0.9) 0%, transparent 70%),
+    /* Base red dark */
+    linear-gradient(180deg, #1a0000 0%, #220000 40%, #180005 100%);
+}

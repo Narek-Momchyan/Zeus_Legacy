@@ -1,0 +1,98 @@
+@keyframes teaserPulse {
+  0% { box-shadow: inset 0 0 0px transparent; filter: brightness(1); }
+  50% { box-shadow: inset 0 0 20px rgba(255,215,0,0.8); filter: brightness(1.2); }
+  100% { box-shadow: inset 0 0 0px transparent; filter: brightness(1); }
+}
+
+.teaser-glow {
+  animation: teaserPulse 1.2s infinite ease-in-out;
+  border-radius: 12px;
+}
+
+@keyframes cellWinPulse {
+  0% { transform: scale(1); filter: brightness(1); }
+  25% { transform: scale(1.25); filter: brightness(1.6) contrast(1.2); }
+  50% { transform: scale(0.92); filter: brightness(1); }
+  75% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
+@keyframes multPulse {
+  0%, 100% { filter: brightness(1) drop-shadow(0 0 4px currentColor); }
+  50% { filter: brightness(1.3) drop-shadow(0 0 16px currentColor) drop-shadow(0 0 32px currentColor); }
+}
+
+@keyframes btnShine {
+  0% { background-position: -220% center; }
+  100% { background-position: 220% center; }
+}
+
+@keyframes shake {
+  0% { transform: translate(0, 0) rotate(0deg); }
+  10% { transform: translate(-8px, -6px) rotate(-1deg); }
+  20% { transform: translate(12px, 4px) rotate(1.5deg); }
+  30% { transform: translate(-12px, 8px) rotate(0deg); }
+  40% { transform: translate(8px, -6px) rotate(1deg); }
+  50% { transform: translate(-6px, 10px) rotate(-1.5deg); }
+  60% { transform: translate(-8px, 4px) rotate(0deg); }
+  70% { transform: translate(8px, 6px) rotate(-1deg); }
+  80% { transform: translate(-4px, -4px) rotate(1deg); }
+  90% { transform: translate(4px, 6px) rotate(0deg); }
+  100% { transform: translate(2px, -2px) rotate(-0.5deg); }
+}
+
+.shake {
+  animation: shake 0.42s cubic-bezier(.36, .07, .19, .97);
+}
+
+@keyframes lightning {
+  0%, 100% { opacity: 0; }
+  2%, 6% { opacity: 0.85; }
+  4% { opacity: 0.2; }
+  8% { opacity: 0; }
+}
+
+.lightning-flash {
+  animation: lightning 0.55s ease-out forwards;
+}
+
+@keyframes orbFloat {
+  0%, 100% { transform: translateY(0) scale(1); opacity: 0.65; }
+  50% { transform: translateY(-28px) scale(1.06); opacity: 0.9; }
+}
+
+.orb {
+  animation: orbFloat 9s ease-in-out infinite;
+  will-change: transform;
+}
+
+.orb-2 {
+  animation-delay: -4.5s;
+  animation-duration: 13s;
+}
+
+.orb-3 {
+  animation-delay: -2s;
+  animation-duration: 17s;
+}
+
+@keyframes numPop {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.22); }
+  100% { transform: scale(1); }
+}
+
+.num-pop {
+  animation: numPop 0.28s ease-out;
+}
+
+@keyframes multGlowPulse {
+  0% {
+    box-shadow: 0 0 8px rgba(245, 208, 60, 0.15), inset 0 0 4px rgba(245, 208, 60, 0.1);
+    border-color: rgba(245, 208, 60, 0.35);
+  }
+  100% {
+    box-shadow: 0 0 16px rgba(245, 208, 60, 0.3), inset 0 0 8px rgba(245, 208, 60, 0.2);
+    border-color: rgba(245, 208, 60, 0.6);
+  }
+}

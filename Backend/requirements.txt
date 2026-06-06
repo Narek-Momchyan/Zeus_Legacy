@@ -39,3 +39,6 @@ virtualenv==21.3.1
 dj-database-url==2.1.0
 django-cloudinary-storage==0.3.0
 cloudinary==1.38.0
+channels==4.1.0
+daphne==4.1.2
+channels-redis==4.2.0

@@ -1,0 +1,202 @@
+/* ══════════════════════════════════════════════════
+   HUD — Balance, Win, Bet Bar & Total Multiplier
+   ══════════════════════════════════════════════════ */
+
+/* ── HUD Bar ── */
+.hud-bar {
+  display: flex;
+  align-items: stretch;
+  padding: 0;
+  overflow: hidden;
+}
+
+.hud-column {
+  flex: 1;
+  width: 33.33%;
+  padding: 10px 8px;
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.hud-column:last-child {
+  border-right: none;
+}
+
+.hud-column.win-col {
+  position: relative;
+}
+
+.hud-column.win-col.active-win {
+  background: radial-gradient(ellipse 100% 100% at 50% 50%, rgba(245, 208, 60, 0.12) 0%, transparent 80%);
+}
+
+.hud-column.bet-col { /* left empty intentionally */ }
+
+.loading-text {
+  font-size: 0.8rem;
+  opacity: 0.5;
+}
+
+.win-value {
+  font-size: 1.2rem;
+  background: linear-gradient(135deg, #fff8b0, #f5d060, #c8860a);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.zero-value {
+  font-size: 1.2rem;
+  color: rgba(255, 255, 255, 0.15);
+}
+
+.win-flash {
+  position: absolute;
+  inset: 0;
+  background: rgba(245, 208, 60, 0.16);
+  pointer-events: none;
+}
+
+.bonus-mult-value {
+  font-size: 1.25rem;
+  color: #c87fff;
+}
+
+.mult-symbol {
+  font-size: 0.85rem;
+  opacity: 0.5;
+}
+
+/* ── Stat value ── */
+.stat-value {
+  font-size: 2rem;
+  font-weight: 900;
+  font-family: 'Outfit', monospace;
+  line-height: 1;
+}
+
+/* ── Total Multiplier Sidebar Badge ── */
+.total-multiplier-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: linear-gradient(135deg, rgba(168, 85, 247, 0.18), rgba(245, 208, 60, 0.18));
+  border: 1px solid rgba(245, 208, 60, 0.4);
+  border-radius: 10px;
+  box-shadow: 0 0 12px rgba(245, 208, 60, 0.2);
+  margin-bottom: 8px;
+  flex-shrink: 0;
+  width: 100%;
+  box-sizing: border-box;
+  animation: multGlowPulse 2.5s infinite alternate ease-in-out;
+}
+
+.total-mult-label {
+  font-size: 9px;
+  color: #f5d060;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.total-mult-value {
+  font-family: var(--font-cinzel), serif;
+  font-size: 1.25rem;
+  font-weight: 900;
+  color: #fff;
+  text-shadow: 0 0 6px rgba(245, 208, 60, 0.7);
+  line-height: 1;
+}
+
+.total-mult-bolt {
+  filter: drop-shadow(0 0 4px #f5d060);
+  flex-shrink: 0;
+}
+
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   SMALL MOBILE (max-width: 640px)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+@media (max-width: 640px) {
+  .stat-value { font-size: 1.1rem !important; }
+  .hud-column { padding: 6px 4px !important; }
+}
+
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   ULTRA-SMALL SCREENS (max-width: 360px)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+@media (max-width: 360px) {
+  .hud-column { padding: 3px 2px !important; }
+  .stat-value { font-size: 0.9rem !important; }
+}
+
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   SHORT VIEWPORT (max-height: 680px)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+@media (max-height: 680px) {
+  .hud-column { padding: 3px 2px !important; }
+  .stat-value { font-size: 0.95rem !important; }
+}
+
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   MOBILE LANDSCAPE
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+@media (orientation: landscape) and (max-width: 1024px) and (max-height: 600px) {
+  .hud-bar {
+    flex-direction: column !important;
+    border-radius: 8px;
+    margin-bottom: 6px;
+  }
+
+  .hud-column {
+    width: 100% !important;
+    border-right: none !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+    padding: 4px !important;
+    flex-direction: row !important;
+    justify-content: space-between !important;
+    align-items: center;
+  }
+  .hud-column:last-child { border-bottom: none !important; }
+  .panel-label { font-size: 9px !important; }
+  .stat-value { font-size: 1rem !important; }
+  .ante-bet-wrap { margin: 6px 0 !important; width: 100% !important; }
+}
+
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   MOBILE PORTRAIT TOTAL MULTIPLIER BADGE
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+@media (max-width: 1024px) and (orientation: portrait) {
+  .total-multiplier-badge {
+    width: auto !important;
+    margin-bottom: 0 !important;
+    margin-right: 8px !important;
+    padding: 3px 8px !important;
+    border-radius: 8px !important;
+    gap: 4px !important;
+  }
+  .total-mult-label { font-size: 8px !important; }
+  .total-mult-value { font-size: 0.95rem !important; }
+}
+
+@media (max-width: 380px) and (orientation: portrait) {
+  .total-multiplier-badge {
+    margin-right: 4px !important;
+    padding: 2px 6px !important;
+    gap: 3px !important;
+  }
+  .total-mult-label { display: none !important; }
+  .total-mult-value { font-size: 0.85rem !important; }
+  .stat-value { font-size: 0.85rem !important; }
+  .hud-column { padding: 2px !important; }
+}

@@ -338,29 +338,27 @@ const useSlotEngine = () => {
     };
 
     try {
-      // 1. Request spin from Backend via WebSocket
       const ws = wsRef.current;
       if (!ws || ws.readyState !== WebSocket.OPEN) {
-        console.warn('WebSocket not connected, spin ignored.');
         setAutoSpinsLeft(0);
-        return;
+        throw new Error('WebSocket not connected, spin ignored.');
       }
 
       const result = await new Promise((resolve, reject) => {
-        spinResolverRef.current = { resolve, reject };
+        const currentResolver = { resolve, reject };
+        spinResolverRef.current = currentResolver;
         ws.send(JSON.stringify({
           action: 'spin',
           bet_amount: betAmount,
           is_buy_bonus: isBuyBonus,
           is_ante_bet: isAnteBetActive
         }));
-        // Timeout safety: reject after 15 seconds
         setTimeout(() => {
-          if (spinResolverRef.current) {
-            spinResolverRef.current.reject(new Error('Spin request timed out'));
+          if (spinResolverRef.current === currentResolver) {
+            currentResolver.reject(new Error('Spin request timed out'));
             spinResolverRef.current = null;
           }
-        }, 15000);
+        }, isBuyBonus ? 30000 : 15000);
       });
 
       // 2. Playback Backend Result
@@ -471,14 +469,21 @@ const useSlotEngine = () => {
       }
 
       if (result.triggered_free_spins) {
-        setBonusTotalWin(0);
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('slot_bonus_total_win', '0');
+        if (!wasFreeSpin) {
+          const initialWin = result.total_win || 0;
+          setBonusTotalWin(initialWin);
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('slot_bonus_total_win', String(initialWin));
+          }
+          isBonusRef.current = true;
+          setIsBonusMode(true);
+          setFreeSpinsLeft(result.free_spins_left || 15);
+          setShowBonusTrigger(true);
+          startBonusTheme();
+        } else {
+          // Retrigger! Show the trigger animation again but don't wipe the win
+          setShowBonusTrigger(true);
         }
-        setIsBonusMode(true);
-        setFreeSpinsLeft(15);
-        setShowBonusTrigger(true);
-        startBonusTheme();
       }
 
       // Update jackpot pool from response (always)
@@ -510,8 +515,8 @@ const useSlotEngine = () => {
   //  AUTOPLAY LOGIC
   // ─────────────────────────────────────────────────────────────────────
   useEffect(() => {
-    // If we have auto spins left, we're not spinning, not in bonus mode, and no modal is blocking...
-    if (autoSpinsLeft > 0 && !isSpinning && !isBonusMode && !showWinModal && !showBonusSummary && !showBonusTrigger) {
+    // If we have auto spins left, we're not spinning, and no modal is blocking...
+    if (autoSpinsLeft > 0 && !isSpinning && !showWinModal && !showBonusSummary && !showBonusTrigger) {
       
       let waitTime = 1200;
       if (speedModeRef.current === 'turbo') waitTime = 400;
@@ -524,8 +529,8 @@ const useSlotEngine = () => {
       
       return () => clearTimeout(timer);
     }
-    // Stop autoplay if we enter bonus mode or run out of funds
-    if (isBonusMode || (autoSpinsLeft > 0 && balance < betAmount && !isSpinning)) {
+    // Stop autoplay if we run out of funds
+    if (autoSpinsLeft > 0 && balance < betAmount && !isSpinning && !isBonusMode) {
       setAutoSpinsLeft(0);
     }
   }, [autoSpinsLeft, isSpinning, isBonusMode, showWinModal, showBonusSummary, showBonusTrigger, spin, balance, betAmount]);

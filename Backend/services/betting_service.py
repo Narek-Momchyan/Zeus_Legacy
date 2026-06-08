@@ -132,8 +132,12 @@ class BettingService:
                 
                 from django.core.cache import cache
                 spin_key = f"user_spin_counter_{user.id}"
-                spin_count = cache.get(spin_key, 0) + 1
-                cache.set(spin_key, spin_count, timeout=86400)
+                try:
+                    spin_count = cache.get(spin_key, 0) + 1
+                    cache.set(spin_key, spin_count, timeout=86400)
+                except Exception:
+                    # Ignore cache failures so the spin doesn't crash
+                    spin_count = secrets.randbelow(49) + 1
                 
                 if spin_count % 50 == 0:
                     tier = secrets.choice(['MINI', 'MINOR', 'MAJOR', 'GRAND'])

@@ -100,7 +100,10 @@ class GameConsumer(AsyncJsonWebsocketConsumer):
 
             # Update balance cache
             cache_key = f"user_balance_{user.id}"
-            cache.set(cache_key, spin_result['current_balance'], timeout=300)
+            try:
+                cache.set(cache_key, spin_result['current_balance'], timeout=300)
+            except Exception:
+                pass
 
             return spin_result
 

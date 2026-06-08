@@ -55,7 +55,10 @@ class SpinView(APIView):
                 
                 # Update cache
                 cache_key = f"user_balance_{user.id}"
-                cache.set(cache_key, spin_result['current_balance'], timeout=300)
+                try:
+                    cache.set(cache_key, spin_result['current_balance'], timeout=300)
+                except Exception:
+                    pass
                 
                 return Response(spin_result, status=200)
 
@@ -129,7 +132,10 @@ class ResetWalletView(APIView):
         
         # Clear cache
         cache_key = f"user_balance_{user.id}"
-        cache.delete(cache_key)
+        try:
+            cache.delete(cache_key)
+        except Exception:
+            pass
         
         return Response({
             "balance": float(wallet.balance),

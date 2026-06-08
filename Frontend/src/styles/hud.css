@@ -152,23 +152,33 @@
    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
 @media (orientation: landscape) and (max-width: 1024px) and (max-height: 600px) {
   .hud-bar {
-    flex-direction: column !important;
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
     border-radius: 8px;
-    margin-bottom: 6px;
+    margin-bottom: 4px;
+    flex-shrink: 0;
   }
 
   .hud-column {
-    width: 100% !important;
-    border-right: none !important;
+    width: 50% !important;
+    border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
     border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
     padding: 4px !important;
-    flex-direction: row !important;
-    justify-content: space-between !important;
+    flex-direction: column !important;
+    justify-content: center !important;
     align-items: center;
   }
-  .hud-column:last-child { border-bottom: none !important; }
-  .panel-label { font-size: 9px !important; }
-  .stat-value { font-size: 1rem !important; }
+  .hud-column:nth-child(2) { border-right: none !important; }
+  .hud-column.bet-col {
+    width: 100% !important;
+    border-right: none !important;
+    border-bottom: none !important;
+    flex-direction: row !important;
+    justify-content: space-between !important;
+    padding: 4px 8px !important;
+  }
+  .panel-label { font-size: 8px !important; }
+  .stat-value { font-size: 0.95rem !important; }
   .ante-bet-wrap { margin: 6px 0 !important; width: 100% !important; }
 }
 

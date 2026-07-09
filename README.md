@@ -71,7 +71,8 @@ python manage.py runserver
 
 ---
 
-## 👤 Author
+Zeus Legacy
+A full-stack online slot platform built with React, Next.js, and Django REST Framework, integrating WebSockets for real-time gameplay. Features a bonus buy system for direct entry into bonus rounds, tumble/cascade win mechanics with dynamic multipliers, and secure transaction logging via RESTful APIs.
 
 **Narek Momchyan** · [LinkedIn](https://www.linkedin.com/in/narek-momchyan) · [GitHub](https://github.com/Narek-Momchyan)
 

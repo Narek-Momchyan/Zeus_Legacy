@@ -1,9 +1,11 @@
-# ⚡ Zeus Legacy
+# ⚡ Zeus Legacy  
 
 > Real-time sports betting platform with dynamic odds and live audio commentary.
 
 **Live Demo:** [zeus-legacy-alpha.vercel.app](https://zeus-legacy-alpha.vercel.app/)
 
+Zeus Legacy
+A full-stack online slot platform built with React, Next.js, and Django REST Framework, developed with AI-assisted tooling. Integrates WebSockets for real-time gameplay, a bonus buy system, tumble/cascade win mechanics with dynamic multipliers, and secure transaction logging via RESTful APIs
 ---
 
 ## 🏗️ Tech Stack
@@ -71,8 +73,7 @@ python manage.py runserver
 
 ---
 
-Zeus Legacy
-A full-stack online slot platform built with React, Next.js, and Django REST Framework, integrating WebSockets for real-time gameplay. Features a bonus buy system for direct entry into bonus rounds, tumble/cascade win mechanics with dynamic multipliers, and secure transaction logging via RESTful APIs.
+
 
 **Narek Momchyan** · [LinkedIn](https://www.linkedin.com/in/narek-momchyan) · [GitHub](https://github.com/Narek-Momchyan)
 

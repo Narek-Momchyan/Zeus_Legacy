@@ -5,7 +5,7 @@
 🌐 **Կայք՝** [zeus-legacy-alpha.vercel.app](https://zeus-legacy-alpha.vercel.app)
 📂 **Կոդ՝** [github.com/Narek-Momchyan/Zeus_Legacy](https://github.com/Narek-Momchyan/Zeus_Legacy)
 
-> 🔞 18+ · Խաղացեք պատասխանատու կերպով։
+
 
 ---
 

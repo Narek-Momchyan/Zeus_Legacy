@@ -1,52 +1,50 @@
-# ⚡ Zeus Legacy  
+# ⚡ Zeus Legacy — Առցանց Slot Հարթակ
 
-> Real-time sports betting platform with dynamic odds and live audio commentary.
+**Zeus Legacy**-ը fullstack խաղային հարթակ է, որտեղ օգտատերերը կարող են խաղալ slot machine իրական ժամանակի մեխանիկայով, բոնուսային համակարգով և ապահով գործարքների կառավարմամբ։
 
-**Live Demo:** [zeus-legacy-alpha.vercel.app](https://zeus-legacy-alpha.vercel.app/)
+🌐 **Կայք՝** [zeus-legacy-alpha.vercel.app](https://zeus-legacy-alpha.vercel.app)
+📂 **Կոդ՝** [github.com/Narek-Momchyan/Zeus_Legacy](https://github.com/Narek-Momchyan/Zeus_Legacy)
 
-Zeus Legacy
-A full-stack online slot platform built with React, Next.js, and Django REST Framework, developed with AI-assisted tooling. Integrates WebSockets for real-time gameplay, a bonus buy system, tumble/cascade win mechanics with dynamic multipliers, and secure transaction logging via RESTful APIs
----
-
-## 🏗️ Tech Stack
-
-| Layer | Technology |
-|-------|-----------|
-| Frontend | React + Next.js, Tailwind CSS |
-| Backend | Django, Django REST Framework |
-| Real-time | WebSockets |
-| Deployment | Vercel (Frontend) · Render (Backend) |
+> 🔞 18+ · Խաղացեք պատասխանատու կերպով։
 
 ---
 
-## 📁 Project Structure
+## 💡 Ի՞նչ է անում հավելվածը
 
-```
-Zeus_Legacy/
-├── Frontend/          # Next.js + React app
-│   ├── src/
-│   ├── public/
-│   └── package.json
-├── Backend/           # Django REST API
-│   ├── api/
-│   ├── config/
-│   ├── services/
-│   ├── staticfiles/
-│   └── manage.py
-└── error.html
-```
+- ⚡ **Իրական ժամանակի խաղ** — WebSocket-ի միջոցով արդյունքները թարմացվում են անմիջապես՝ առանց էջի վերաբեռնման
+- 🎰 **Tumble / Cascade մեխանիկա** — հաղթող կոմբինացիաների դեպքում նոր խորհրդանիշներ ընկնում են, ստեղծելով շղթայական հաղթանակներ
+- 📈 **Դինամիկ բազմապատկիչներ** — հաղթանակի հետ ավտոմատ աճող multiplier-ներ
+- 🛒 **Bonus Buy համակարգ** — օգտատերը կարող է անմիջապես գնել բոնուս ռաունդ
+- 🔒 **Ապահով գործարքներ** — բոլոր ֆինանսական գործողությունները գրանցվում են REST API-ի միջոցով
 
 ---
 
-## 🚀 Getting Started
+## 🛠️ Օգտագործված տեխնոլոգիաներ
 
-### Prerequisites
-- Node.js 18+
-- Python 3.10+
-- pip / pipenv
+| | Տեխնոլոգիա | Նպատակ |
+|---|---|---|
+| **Frontend** | Next.js + React | Արագ, ռեսպոնսիվ UI |
+| **Styling** | Tailwind CSS | Արագ դիզայն |
+| **Backend** | Django + Django REST Framework | REST API, բիզնես տրամաբանություն |
+| **Real-time** | WebSockets | Ակնթարթային կապ client-server |
+| **Deployment** | Vercel (frontend) + Render (backend) | Production hosting |
+
+---
+
+## 👨‍💻 Ի՞նչ սովորեցի այս պրոյեկտից
+
+- WebSocket-ի ինտեգրում՝ client-server իրական ժամանակի հաղորդակցության համար
+- Բարդ խաղային մեխանիկայի (cascade, multiplier) ծրագրավորում
+- Django REST Framework-ով ֆինանսական գործարքների անվտանգ կառավարում
+- Frontend-ի և backend-ի synchronization WebSocket-ի միջոցով
+- Fullstack deployment՝ Vercel + Render համակցությամբ
+- AI-assisted tooling-ի կիրառում development գործընթացում
+
+---
+
+## 🚀 Տեղական գործարկում
 
 ### Frontend
-
 ```bash
 cd Frontend
 npm install
@@ -54,7 +52,6 @@ npm run dev
 ```
 
 ### Backend
-
 ```bash
 cd Backend
 pip install -r requirements.txt
@@ -62,21 +59,7 @@ python manage.py migrate
 python manage.py runserver
 ```
 
----
-
-## ✨ Features
-
-- 📊 **Dynamic real-time odds** — recalibrated live during matches
-- 🎙️ **Live audio commentary** — synced to match events
-- ⚡ **WebSocket support** — instant updates without page refresh
-- 🔒 **Secure transactions** — encrypted and protected
+Frontend՝ [http://localhost:3000](http://localhost:3000) · Backend՝ [http://localhost:8000](http://localhost:8000)
 
 ---
 
-
-
-**Narek Momchyan** · [LinkedIn](https://www.linkedin.com/in/narek-momchyan) · [GitHub](https://github.com/Narek-Momchyan)
-
----
-
-> 🔞 18+ · Please gamble responsibly.

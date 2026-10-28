@@ -45,7 +45,9 @@ function App() {
     const handleKeyDown = (e) => {
       if (e.key === ' ' || e.code === 'Space') {
         e.preventDefault();
-        spin();
+        // Holding space fires repeated keydown events; only react to a real press
+        if (e.repeat) return;
+        spin({ manual: true });
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -446,7 +448,7 @@ function App() {
             disabled={autoSpinsLeft > 0 && isSpinning}
             onClick={() => {
               if (autoSpinsLeft > 0) setAutoSpinsLeft(0);
-              else spin();
+              else spin({ manual: true });
             }}
             className={isBonusMode ? 'btn-bonus' : 'btn-spin'}
             style={{

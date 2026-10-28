@@ -12,6 +12,9 @@ const SPEED_CONFIGS = {
 
 const delay = (ms) => new Promise(res => setTimeout(res, ms));
 
+// Minimum time between the end of a spin and the next manual spin (button / space)
+const MANUAL_SPIN_COOLDOWN_MS = 500;
+
 const useSlotEngine = () => {
   const gameState = useGameState();
   const {
@@ -47,6 +50,11 @@ const useSlotEngine = () => {
   } = gameState;
 
   const spinResolverRef = useRef(null);
+  // True once the server result is on screen: STOP/skip is ignored before that,
+  // otherwise a quick double click skipped the whole spin before it was shown.
+  const resultShownRef = useRef(false);
+  // When the last spin finished, so repeated manual clicks can't chain spins instantly.
+  const lastSpinEndRef = useRef(0);
 
   const {
     isMuted, isLoaded, toggleMute,
@@ -178,9 +186,10 @@ const useSlotEngine = () => {
 
   const spin = useCallback(async (options = {}) => {
     if (isSpinningRef.current) {
-      isSkippingRef.current = true;
+      if (resultShownRef.current) isSkippingRef.current = true;
       return;
     }
+    if (options.manual && Date.now() - lastSpinEndRef.current < MANUAL_SPIN_COOLDOWN_MS) return;
 
     const isBuyBonus = options.isBuyBonus === true;
     const isFreeSpin = isBonusRef.current;
@@ -188,6 +197,7 @@ const useSlotEngine = () => {
     isSpinningRef.current = true;
     setIsSpinning(true);
     isSkippingRef.current = false;
+    resultShownRef.current = false;
 
     resetForSpin(isFreeSpin);
 
@@ -219,6 +229,7 @@ const useSlotEngine = () => {
 
       const initialGrid = mapGrid(result.initial_grid);
       setGrid(initialGrid);
+      resultShownRef.current = true;
 
       if (result.initial_grid.flat().includes('scatter')) {
         setTimeout(() => playScatterImpact(), 300);
@@ -340,6 +351,8 @@ const useSlotEngine = () => {
     } finally {
       setIsSpinning(false);
       isSpinningRef.current = false;
+      resultShownRef.current = false;
+      lastSpinEndRef.current = Date.now();
     }
   }, [
     isSpinningRef, isSkippingRef, setIsSpinning, resetForSpin, isBonusRef, isConnected,
@@ -384,8 +397,8 @@ const useSlotEngine = () => {
       if (data) {
         setIsBonusMode(false);
         setFreeSpinsLeft(0);
-        setGlobalMultiplier(1);
-        globalMultRef.current = 1;
+        setGlobalMultiplier(0);
+        globalMultRef.current = 0;
         setBalance(data.balance);
         setActiveMultipliers([]);
         setTumbleCount(0);

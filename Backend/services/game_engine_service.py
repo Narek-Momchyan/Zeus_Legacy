@@ -47,6 +47,35 @@ class GameEngineService:
     Handles grid generation, win evaluation, and tumbling mechanics.
     """
 
+    # The global multiplier starts at 0 (base game and start of free spins): collected
+    # multiplier symbols are added to it and it is applied only when it is > 0.
+    START_MULTIPLIER = 0.0
+
+    # Free spins awarded for 4+ scatters in the base game / during free spins
+    FREE_SPINS_AWARD = 15
+    FREE_SPINS_RETRIGGER = 5
+
+    # Ante Bet scales the base game scatter weight (x1.25 stake, ~x1.75 bonus chance).
+    # The bonus chance grows roughly with the 4th power of this factor, so x2.0 made it ~9x.
+    ANTE_SCATTER_WEIGHT_FACTOR = 1.195
+
+    # Symbol weights tuned with scripts/simulate_rtp.py for ~95.4% game RTP
+    # (+ ~0.7% progressive jackpots = ~96% total). Base game has no x250/x500.
+    DEFAULT_BASE_GAME_WEIGHTS = {
+        "crown": 3.5, "hourglass": 5.5, "ring": 7.5, "cup": 9.5,
+        "red_gem": 15.0, "purple_gem": 17.0, "yellow_gem": 19.0, "green_gem": 21.0, "blue_gem": 22.0,
+        "scatter": 2.03,
+        "mult_2": 0.13, "mult_5": 0.05, "mult_10": 0.02, "mult_25": 0.005,
+        "mult_50": 0.002, "mult_100": 0.001, "mult_250": 0.0, "mult_500": 0.0
+    }
+    DEFAULT_FREE_SPIN_WEIGHTS = {
+        "crown": 5.0, "hourglass": 7.0, "ring": 9.0, "cup": 11.0,
+        "red_gem": 14.0, "purple_gem": 16.0, "yellow_gem": 18.0, "green_gem": 19.0, "blue_gem": 20.0,
+        "scatter": 2.5,
+        "mult_2": 2.9, "mult_5": 1.45, "mult_10": 0.68, "mult_25": 0.24,
+        "mult_50": 0.1, "mult_100": 0.04, "mult_250": 0.015, "mult_500": 0.005
+    }
+
     def _load_symbols_from_db(self):
         try:
             from api.models import Symbol, GameAudio
@@ -98,24 +127,24 @@ class GameEngineService:
             Symbol.objects.all().delete()
             
         default_symbols = [
-            {"id": "crown", "name": "Crown", "type": "regular", "weight_base": 2.5, "weight_free": 4.0, "payout_8_9": 10.0, "payout_10_11": 25.0, "payout_12_plus": 50.0},
-            {"id": "hourglass", "name": "Hourglass", "type": "regular", "weight_base": 4.0, "weight_free": 8.0, "payout_8_9": 2.5, "payout_10_11": 10.0, "payout_12_plus": 25.0},
-            {"id": "ring", "name": "Ring", "type": "regular", "weight_base": 6.0, "weight_free": 12.0, "payout_8_9": 2.0, "payout_10_11": 5.0, "payout_12_plus": 15.0},
-            {"id": "cup", "name": "Cup", "type": "regular", "weight_base": 8.0, "weight_free": 18.0, "payout_8_9": 1.5, "payout_10_11": 2.0, "payout_12_plus": 12.0},
-            {"id": "red_gem", "name": "Red Gem", "type": "regular", "weight_base": 15.0, "weight_free": 22.0, "payout_8_9": 1.0, "payout_10_11": 1.5, "payout_12_plus": 10.0},
-            {"id": "purple_gem", "name": "Purple Gem", "type": "regular", "weight_base": 18.0, "weight_free": 24.0, "payout_8_9": 0.8, "payout_10_11": 1.2, "payout_12_plus": 8.0},
-            {"id": "yellow_gem", "name": "Yellow Gem", "type": "regular", "weight_base": 20.0, "weight_free": 26.0, "payout_8_9": 0.5, "payout_10_11": 1.0, "payout_12_plus": 5.0},
-            {"id": "green_gem", "name": "Green Gem", "type": "regular", "weight_base": 22.0, "weight_free": 28.0, "payout_8_9": 0.4, "payout_10_11": 0.9, "payout_12_plus": 4.0},
-            {"id": "blue_gem", "name": "Blue Gem", "type": "regular", "weight_base": 24.0, "weight_free": 30.0, "payout_8_9": 0.25, "payout_10_11": 0.75, "payout_12_plus": 2.0},
-            {"id": "scatter", "name": "Zeus Scatter", "type": "scatter", "weight_base": 1.5, "weight_free": 8.0, "payout_8_9": 3.0, "payout_10_11": 5.0, "payout_12_plus": 100.0},
-            {"id": "mult_2", "name": "x2 Multiplier", "type": "multiplier", "weight_base": 1.0, "weight_free": 16.0, "multiplier_value": 2.0},
-            {"id": "mult_5", "name": "x5 Multiplier", "type": "multiplier", "weight_base": 0.5, "weight_free": 10.0, "multiplier_value": 5.0},
-            {"id": "mult_10", "name": "x10 Multiplier", "type": "multiplier", "weight_base": 0.2, "weight_free": 6.0, "multiplier_value": 10.0},
-            {"id": "mult_25", "name": "x25 Multiplier", "type": "multiplier", "weight_base": 0.05, "weight_free": 3.0, "multiplier_value": 25.0},
-            {"id": "mult_50", "name": "x50 Multiplier", "type": "multiplier", "weight_base": 0.02, "weight_free": 1.5, "multiplier_value": 50.0},
-            {"id": "mult_100", "name": "x100 Multiplier", "type": "multiplier", "weight_base": 0.01, "weight_free": 0.8, "multiplier_value": 100.0},
-            {"id": "mult_250", "name": "x250 Multiplier", "type": "multiplier", "weight_base": 0.005, "weight_free": 0.3, "multiplier_value": 250.0},
-            {"id": "mult_500", "name": "x500 Multiplier", "type": "multiplier", "weight_base": 0.002, "weight_free": 0.1, "multiplier_value": 500.0},
+            {"id": "crown", "name": "Crown", "type": "regular", "weight_base": 3.5, "weight_free": 5.0, "payout_8_9": 10.0, "payout_10_11": 25.0, "payout_12_plus": 50.0},
+            {"id": "hourglass", "name": "Hourglass", "type": "regular", "weight_base": 5.5, "weight_free": 7.0, "payout_8_9": 2.5, "payout_10_11": 10.0, "payout_12_plus": 25.0},
+            {"id": "ring", "name": "Ring", "type": "regular", "weight_base": 7.5, "weight_free": 9.0, "payout_8_9": 2.0, "payout_10_11": 5.0, "payout_12_plus": 15.0},
+            {"id": "cup", "name": "Cup", "type": "regular", "weight_base": 9.5, "weight_free": 11.0, "payout_8_9": 1.5, "payout_10_11": 2.0, "payout_12_plus": 12.0},
+            {"id": "red_gem", "name": "Red Gem", "type": "regular", "weight_base": 15.0, "weight_free": 14.0, "payout_8_9": 1.0, "payout_10_11": 1.5, "payout_12_plus": 10.0},
+            {"id": "purple_gem", "name": "Purple Gem", "type": "regular", "weight_base": 17.0, "weight_free": 16.0, "payout_8_9": 0.8, "payout_10_11": 1.2, "payout_12_plus": 8.0},
+            {"id": "yellow_gem", "name": "Yellow Gem", "type": "regular", "weight_base": 19.0, "weight_free": 18.0, "payout_8_9": 0.5, "payout_10_11": 1.0, "payout_12_plus": 5.0},
+            {"id": "green_gem", "name": "Green Gem", "type": "regular", "weight_base": 21.0, "weight_free": 19.0, "payout_8_9": 0.4, "payout_10_11": 0.9, "payout_12_plus": 4.0},
+            {"id": "blue_gem", "name": "Blue Gem", "type": "regular", "weight_base": 22.0, "weight_free": 20.0, "payout_8_9": 0.25, "payout_10_11": 0.75, "payout_12_plus": 2.0},
+            {"id": "scatter", "name": "Zeus Scatter", "type": "scatter", "weight_base": 2.03, "weight_free": 2.5, "payout_8_9": 3.0, "payout_10_11": 5.0, "payout_12_plus": 100.0},
+            {"id": "mult_2", "name": "x2 Multiplier", "type": "multiplier", "weight_base": 0.13, "weight_free": 2.9, "multiplier_value": 2.0},
+            {"id": "mult_5", "name": "x5 Multiplier", "type": "multiplier", "weight_base": 0.05, "weight_free": 1.45, "multiplier_value": 5.0},
+            {"id": "mult_10", "name": "x10 Multiplier", "type": "multiplier", "weight_base": 0.02, "weight_free": 0.68, "multiplier_value": 10.0},
+            {"id": "mult_25", "name": "x25 Multiplier", "type": "multiplier", "weight_base": 0.005, "weight_free": 0.24, "multiplier_value": 25.0},
+            {"id": "mult_50", "name": "x50 Multiplier", "type": "multiplier", "weight_base": 0.002, "weight_free": 0.1, "multiplier_value": 50.0},
+            {"id": "mult_100", "name": "x100 Multiplier", "type": "multiplier", "weight_base": 0.001, "weight_free": 0.04, "multiplier_value": 100.0},
+            {"id": "mult_250", "name": "x250 Multiplier", "type": "multiplier", "weight_base": 0.0, "weight_free": 0.015, "multiplier_value": 250.0},
+            {"id": "mult_500", "name": "x500 Multiplier", "type": "multiplier", "weight_base": 0.0, "weight_free": 0.005, "multiplier_value": 500.0},
         ]
         for ds in default_symbols:
             Symbol.objects.get_or_create(
@@ -164,20 +193,8 @@ class GameEngineService:
             self.FREE_SPIN_WEIGHTS = db_free_weights
         else:
             self.config = config or self._get_default_config()
-            self.BASE_GAME_WEIGHTS = {
-                "crown": 2.5, "hourglass": 4.0, "ring": 6.0, "cup": 8.0,
-                "red_gem": 15.0, "purple_gem": 18.0, "yellow_gem": 20.0, "green_gem": 22.0, "blue_gem": 24.0,
-                "scatter": 1.5,
-                "mult_2": 1.0, "mult_5": 0.5, "mult_10": 0.2, "mult_25": 0.05,
-                "mult_50": 0.02, "mult_100": 0.01, "mult_250": 0.005, "mult_500": 0.002
-            }
-            self.FREE_SPIN_WEIGHTS = {
-                "crown": 4.0, "hourglass": 8.0, "ring": 12.0, "cup": 18.0,
-                "red_gem": 22.0, "purple_gem": 24.0, "yellow_gem": 26.0, "green_gem": 28.0, "blue_gem": 30.0,
-                "scatter": 8.0,
-                "mult_2": 16.0, "mult_5": 10.0, "mult_10": 6.0, "mult_25": 3.0,
-                "mult_50": 1.5, "mult_100": 0.8, "mult_250": 0.3, "mult_500": 0.1
-            }
+            self.BASE_GAME_WEIGHTS = dict(self.DEFAULT_BASE_GAME_WEIGHTS)
+            self.FREE_SPIN_WEIGHTS = dict(self.DEFAULT_FREE_SPIN_WEIGHTS)
 
         # Sync symbol IDs from the config
         self._symbol_ids = [s.id for s in self.config.symbols]
@@ -294,7 +311,7 @@ class GameEngineService:
         weights = [weight_map.get(sid, 1.0) for sid in self._symbol_ids]
         if is_ante_bet and not is_free_spin:
             try:
-                weights[self._symbol_ids.index("scatter")] *= 2.0
+                weights[self._symbol_ids.index("scatter")] *= self.ANTE_SCATTER_WEIGHT_FACTOR
             except: pass
         return weights
 
@@ -327,10 +344,11 @@ class GameEngineService:
             current_scatters = sum(row.count("scatter") for row in grid)
             needed = force_scatters - current_scatters
             if needed > 0:
-                all_coords = [(r, c) for r in range(self.config.rows) for c in range(self.config.cols)]
-                self._secure_shuffle(all_coords)
+                # Only overwrite non-scatter cells, otherwise the grid can end up with < force_scatters
+                free_coords = [(r, c) for r in range(self.config.rows) for c in range(self.config.cols) if grid[r][c] != "scatter"]
+                self._secure_shuffle(free_coords)
                 for i in range(needed):
-                    r, c = all_coords[i]
+                    r, c = free_coords[i]
                     grid[r][c] = "scatter"
                     
         return grid
@@ -374,14 +392,9 @@ class GameEngineService:
                     multiplier_symbols.append(symbol_cfg.multiplier_value)
                 continue
 
-            # Scatters: Record them but don't add to winning_coords (they stay on grid)
+            # Scatters: they don't explode and are paid once per spin by execute_spin,
+            # so they are NOT part of the tumble wins/payout here.
             if symbol_cfg.type == "scatter":
-                # Scatters pay if 4+ land, but they don't explode
-                applicable = [b for b in symbol_cfg.payout_config.keys() if count >= b]
-                if applicable:
-                    payout = symbol_cfg.payout_config[max(applicable)]
-                    wins.append(WinDetail(symbol_id=symbol_id, count=count, payout=payout))
-                    total_payout += payout
                 continue
 
             # Regular symbols: Evaluate paytable
@@ -458,39 +471,35 @@ class GameEngineService:
         tumble_count = 0
         
         global_mult = current_global_multiplier
-        scatters_paid = False
         triggered_free_spins = False
-        any_multiplier_collected = False
         is_max_win = False
-        
+
         while tumble_count < max_tumbles:
             result = self.evaluate_wins(current_grid)
             
             # 1. Handle Scatters (Pay once per spin)
+            # Scatters stay on the grid, so the count can only grow during tumbles. The scatter
+            # win is assigned (not accumulated) from the current count, so it is paid once.
             scatter_count = sum(row.count("scatter") for row in current_grid)
             if scatter_count >= 4:
                 triggered_free_spins = True
-                if not scatters_paid:
-                    scatter_cfg = self._symbol_map["scatter"]
-                    applicable = [b for b in scatter_cfg.payout_config.keys() if scatter_count >= b]
-                    if applicable:
-                        total_scatter_win = scatter_cfg.payout_config[max(applicable)]
-                        scatters_paid = True
+                scatter_cfg = self._symbol_map["scatter"]
+                applicable = [b for b in scatter_cfg.payout_config.keys() if scatter_count >= b]
+                if applicable:
+                    total_scatter_win = scatter_cfg.payout_config[max(applicable)]
 
-            # 2. Multiplier logic
-            tumble_mult_sum = sum(result.multiplier_symbols)
-            
-            # If there's a win in this tumble, multipliers are collected
-            if result.wins and tumble_mult_sum > 0:
-                global_mult += tumble_mult_sum
-                any_multiplier_collected = True
-            
-            # 3. Payout Calculation
+            # 2. Payout Calculation
             cumulative_base_win += result.total_payout
-            
+
+            # 3. Multiplier logic
+            # Multiplier symbols never explode, so every multiplier that landed during this spin
+            # is still on the grid. They are collected ONCE, at the end of the spin, and only if
+            # the spin had a win. Here we only preview the value for the sequence win display.
+            pending_mult_sum = sum(result.multiplier_symbols)
+
             # Sequence win = (Sum of gem wins * Current Global Multiplier) + Scatter Win
-            # Real Slot Rule: Accumulated multiplier ONLY applies if at least one multiplier landed in a winning tumble of this spin.
-            current_multiplier_to_apply = global_mult if (global_mult > 0 and any_multiplier_collected) else 1
+            # Real Slot Rule: Accumulated multiplier ONLY applies if at least one multiplier is collected in this spin.
+            current_multiplier_to_apply = (global_mult + pending_mult_sum) if (cumulative_base_win > 0 and pending_mult_sum > 0) else 1
             # IMPORTANT: Scatter wins are NEVER multiplied by the global multiplier in real slots.
             current_sequence_win = (cumulative_base_win * current_multiplier_to_apply) + total_scatter_win
 
@@ -507,14 +516,14 @@ class GameEngineService:
                 is_free_spin=is_free_spin, 
                 is_ante_bet=is_ante_bet,
                 disable_multipliers=disable_multipliers
-            ) if (result.wins and not max_win_capped) else [row[:] for row in current_grid]
+            ) if (result.winning_coords and not max_win_capped) else [row[:] for row in current_grid]
 
             step_data = {
                 "step": tumble_count,
                 "grid": [row[:] for row in current_grid],
                 "next_grid": next_grid if not max_win_capped else [row[:] for row in current_grid],
                 "winning_coords": result.winning_coords if not max_win_capped else [],
-                "multiplier": tumble_mult_sum if tumble_mult_sum > 0 else None,
+                "multiplier": None,  # Set on the last winning step once multipliers are collected
                 "payout": result.total_payout if not max_win_capped else 0,
                 "sequence_win": current_sequence_win,
                 "is_free_spin": is_free_spin,
@@ -522,15 +531,38 @@ class GameEngineService:
             }
             tumble_history.append(step_data)
             
-            if not result.wins or max_win_capped:
+            # Only exploding (regular) wins continue the tumble sequence
+            if not result.winning_coords or max_win_capped:
                 break
                 
             current_grid = next_grid
             tumble_count += 1
             
+        # Collect each multiplier symbol exactly once per spin (only if the spin had a win)
+        collected_multipliers = []
+        if cumulative_base_win > 0:
+            collected_multipliers = [
+                self._symbol_map[symbol_id].multiplier_value
+                for row in current_grid for symbol_id in row
+                if symbol_id in self._symbol_map and self._symbol_map[symbol_id].type == "multiplier"
+            ]
+        spin_mult_sum = sum(collected_multipliers)
+        any_multiplier_collected = spin_mult_sum > 0
+        if any_multiplier_collected:
+            global_mult += spin_mult_sum
+            # Attach the collected value to the last winning step so the UI animates it once
+            for step_data in reversed(tumble_history):
+                if step_data["winning_coords"]:
+                    step_data["multiplier"] = spin_mult_sum
+                    break
+
         final_multiplier_to_apply = global_mult if (global_mult > 0 and any_multiplier_collected) else 1
         final_total_win = (cumulative_base_win * final_multiplier_to_apply) + total_scatter_win
         
+        free_spins_awarded = 0
+        if triggered_free_spins:
+            free_spins_awarded = self.FREE_SPINS_RETRIGGER if is_free_spin else self.FREE_SPINS_AWARD
+
         # FINAL PROTECTION: Max win capped at 1000.0
         final_total_win = min(final_total_win, 1000.0)
 
@@ -544,8 +576,10 @@ class GameEngineService:
             "total_win": final_total_win,
             "tumble_count": tumble_count,
             "triggered_free_spins": triggered_free_spins,
-            "free_spins_left": 15 if triggered_free_spins else 0,
+            "free_spins_left": free_spins_awarded,
+            "free_spins_awarded": free_spins_awarded,
             "global_multiplier_value": global_mult,
+            "collected_multipliers": collected_multipliers,
             "is_free_spin": is_free_spin,
             "is_max_win": is_max_win
         }

@@ -2,7 +2,7 @@ import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const GlobalMultiplier = ({ value, isBonusMode }) => {
-  if (!isBonusMode && value <= 1) return null;
+  if (!isBonusMode && value <= 0) return null;
 
   // Colors & Gradients based on mode
   const accentColor = isBonusMode ? '#c87fff' : '#f5d060';

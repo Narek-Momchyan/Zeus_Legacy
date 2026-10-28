@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 
-const BonusTrigger = ({ onComplete }) => {
+const BonusTrigger = ({ onComplete, spins = 15 }) => {
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -103,7 +103,7 @@ const BonusTrigger = ({ onComplete }) => {
             fontFamily: "'Cinzel Decorative', serif",
           }}
         >
-          15 Free Spins
+          {spins} Free Spins
         </motion.div>
 
         <motion.p

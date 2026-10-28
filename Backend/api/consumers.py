@@ -7,6 +7,7 @@ import logging
 from django.core.cache import cache
 
 from .models import UserWallet, ProgressiveJackpot
+from .utils import parse_bool
 
 logger = logging.getLogger('game_events')
 
@@ -34,6 +35,7 @@ class GameConsumer(AsyncJsonWebsocketConsumer):
     def get_user(self):
         user = self.scope.get('user')
         if not user or user.is_anonymous:
+            # DEMO MODE: anonymous visitors share the "dev_player" demo account (play money only, no real funds).
             user, _ = User.objects.get_or_create(username="dev_player")
         return user
 
@@ -81,6 +83,7 @@ class GameConsumer(AsyncJsonWebsocketConsumer):
 
         user = self.scope.get('user')
         if not user or user.is_anonymous:
+            # DEMO MODE: anonymous visitors share the "dev_player" demo account (play money only, no real funds).
             user, _ = User.objects.get_or_create(username="dev_player")
 
         # Validation
@@ -115,8 +118,8 @@ class GameConsumer(AsyncJsonWebsocketConsumer):
     async def handle_spin(self, content):
         try:
             bet_amount = Decimal(str(content.get('bet_amount', '1.00')))
-            is_buy_bonus = content.get('is_buy_bonus', False)
-            is_ante_bet = content.get('is_ante_bet', False)
+            is_buy_bonus = parse_bool(content.get('is_buy_bonus', False))
+            is_ante_bet = parse_bool(content.get('is_ante_bet', False))
 
             result = await self.execute_spin_db(bet_amount, is_buy_bonus, is_ante_bet)
 

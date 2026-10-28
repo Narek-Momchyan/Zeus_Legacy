@@ -48,8 +48,8 @@ export default function useGameState() {
 
   // ── Multipliers ───────────────────────────────────────────────────────
   const [activeMultipliers, setActiveMultipliers] = useState([]);
-  const [globalMultiplier, setGlobalMultiplier] = useState(1);
-  const globalMultRef = useRef(1);
+  const [globalMultiplier, setGlobalMultiplier] = useState(0);
+  const globalMultRef = useRef(0);
 
   // ── Bonus round ───────────────────────────────────────────────────────
   const [isBonusMode, setIsBonusMode] = useState(false);
@@ -91,8 +91,8 @@ export default function useGameState() {
     setShouldShake(false);
     setShowParticles(false);
     if (!isFreeSpin) {
-      setGlobalMultiplier(1);
-      globalMultRef.current = 1;
+      setGlobalMultiplier(0);
+      globalMultRef.current = 0;
     }
   }, []);
 

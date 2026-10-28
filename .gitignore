@@ -11,4 +11,9 @@ Backend/__pycache__/
 Backend/*.pyc
 Backend/db.sqlite3
 Backend/.env
-Backend/game_transactions.loggit rm -r --cached .
+Backend/game_transactions.log*
+Backend/staticfiles/
+
+# Python bytecode (any directory)
+__pycache__/
+*.py[cod]

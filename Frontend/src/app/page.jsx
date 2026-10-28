@@ -45,7 +45,9 @@ function App() {
     const handleKeyDown = (e) => {
       if (e.key === ' ' || e.code === 'Space') {
         e.preventDefault();
-        spin();
+        // Holding space fires repeated keydown events; only react to a real press
+        if (e.repeat) return;
+        spin({ manual: true });
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -105,7 +107,7 @@ function App() {
       {/* ── Modals ── */}
       <AnimatePresence>
         {showWinModal && <BigWinOverlay key="win-modal" amount={lastWinAmount} betAmount={betAmount} onComplete={() => setShowWinModal(false)} />}
-        {showBonusTrigger && <BonusTrigger key="bonus-trigger" onComplete={() => setShowBonusTrigger(false)} />}
+        {showBonusTrigger && <BonusTrigger key="bonus-trigger" spins={showBonusTrigger} onComplete={() => setShowBonusTrigger(false)} />}
         {showBonusSummary && <BonusSummary key="bonus-summary" totalWin={bonusTotalWin} onClose={() => setShowBonusSummary(false)} />}
         {jackpotWon && <JackpotWinOverlay key="jackpot-win" jackpotWon={jackpotWon} onClose={() => setJackpotWon(null)} />}
       </AnimatePresence>
@@ -187,7 +189,7 @@ function App() {
 
         {/* Right — collected multipliers */}
         <aside className="multiplier-panel">
-          {globalMultiplier > 1 && (
+          {globalMultiplier > 0 && (
             <div className="total-multiplier-badge">
               <span className="total-mult-label">Total</span>
               <span className="total-mult-value">×{globalMultiplier}</span>
@@ -446,7 +448,7 @@ function App() {
             disabled={autoSpinsLeft > 0 && isSpinning}
             onClick={() => {
               if (autoSpinsLeft > 0) setAutoSpinsLeft(0);
-              else spin();
+              else spin({ manual: true });
             }}
             className={isBonusMode ? 'btn-bonus' : 'btn-spin'}
             style={{

@@ -4,8 +4,8 @@ from decimal import Decimal
 import logging
 
 from .game_engine_service import GameEngineService
+from .jackpot import CONTRIBUTION_RATES, SEED_POOLS, roll_jackpot
 from api.models import UserWallet, GameLog, ProgressiveJackpot
-import secrets
 
 logger = logging.getLogger('game_events')
 
@@ -58,7 +58,7 @@ class BettingService:
                 else:
                     # Normal Spin
                     bet_amount = requested_bet_amount
-                    current_multiplier = 1.0
+                    current_multiplier = GameEngineService.START_MULTIPLIER
                     actual_cost = Decimal(str(bet_amount))
                     force_scatters = 0
                     if is_buy_bonus:
@@ -92,10 +92,10 @@ class BettingService:
 
                 # 6. Update Bonus State Securely
                 if spin_result['triggered_free_spins']:
-                    wallet.free_spins_left += 15
+                    wallet.free_spins_left += spin_result['free_spins_awarded']
                     if not is_free_spin:
                         wallet.free_spin_bet_amount = bet_amount
-                        wallet.current_multiplier = 1.0
+                        wallet.current_multiplier = GameEngineService.START_MULTIPLIER
                 
                 if is_free_spin:
                     wallet.free_spins_left -= 1
@@ -112,70 +112,28 @@ class BettingService:
                 # Step 2: Now lock it safely
                 jackpot = ProgressiveJackpot.objects.select_for_update().get(pk=1)
                 
-                # Contribution: every spin adds a tiny % of bet into the pools
+                # Contribution: every paid spin adds a tiny % of the stake into the pools
                 if actual_cost > Decimal('0.00'):
                     # Use F() for safe atomic DB-level addition
                     # pyrefly: ignore [missing-import]
                     from django.db.models import F
                     ProgressiveJackpot.objects.filter(pk=1).update(
-                        mini_pool=F('mini_pool')   + actual_cost * Decimal('0.0020'),
-                        minor_pool=F('minor_pool') + actual_cost * Decimal('0.0010'),
-                        major_pool=F('major_pool') + actual_cost * Decimal('0.0005'),
-                        grand_pool=F('grand_pool') + actual_cost * Decimal('0.0002'),
+                        mini_pool=F('mini_pool')   + actual_cost * CONTRIBUTION_RATES['MINI'],
+                        minor_pool=F('minor_pool') + actual_cost * CONTRIBUTION_RATES['MINOR'],
+                        major_pool=F('major_pool') + actual_cost * CONTRIBUTION_RATES['MAJOR'],
+                        grand_pool=F('grand_pool') + actual_cost * CONTRIBUTION_RATES['GRAND'],
                     )
                     # Re-fetch fresh values after update
                     jackpot.refresh_from_db()
 
-                # Win Roll: Test Game Rule (Trigger a jackpot exactly every 50th spin)
+                # Win Roll: the chance is proportional to the real money staked on this spin,
+                # so the jackpot RTP does not depend on the bet size (free spins never win).
                 jackpot_won = None
-                jackpot_won_tier = None
-                
-                from django.core.cache import cache
-                spin_key = f"user_spin_counter_{user.id}"
-                try:
-                    spin_count = cache.get(spin_key, 0) + 1
-                    cache.set(spin_key, spin_count, timeout=86400)
-                except Exception:
-                    # Ignore cache failures so the spin doesn't crash
-                    spin_count = secrets.randbelow(49) + 1
-                
-                if spin_count % 50 == 0:
-                    tier = secrets.choice(['MINI', 'MINOR', 'MAJOR', 'GRAND'])
-                    if tier == 'GRAND':
-                        jackpot_won = jackpot.grand_pool
-                        jackpot.grand_pool = Decimal('50000.00')
-                        jackpot_won_tier = 'GRAND'
-                    elif tier == 'MAJOR':
-                        jackpot_won = jackpot.major_pool
-                        jackpot.major_pool = Decimal('5000.00')
-                        jackpot_won_tier = 'MAJOR'
-                    elif tier == 'MINOR':
-                        jackpot_won = jackpot.minor_pool
-                        jackpot.minor_pool = Decimal('500.00')
-                        jackpot_won_tier = 'MINOR'
-                    else:
-                        jackpot_won = jackpot.mini_pool
-                        jackpot.mini_pool = Decimal('100.00')
-                        jackpot_won_tier = 'MINI'
-                else:
-                    # Normal random chance roll
-                    r = secrets.randbelow(1_000_000)
-                    if r < 5:       # 1 in 200,000 -> GRAND
-                        jackpot_won = jackpot.grand_pool
-                        jackpot.grand_pool = Decimal('50000.00')
-                        jackpot_won_tier = 'GRAND'
-                    elif r < 50:    # 1 in 22,000 -> MAJOR
-                        jackpot_won = jackpot.major_pool
-                        jackpot.major_pool = Decimal('5000.00')
-                        jackpot_won_tier = 'MAJOR'
-                    elif r < 300:   # 1 in 3,500 -> MINOR
-                        jackpot_won = jackpot.minor_pool
-                        jackpot.minor_pool = Decimal('500.00')
-                        jackpot_won_tier = 'MINOR'
-                    elif r < 2000:  # 1 in 500 -> MINI
-                        jackpot_won = jackpot.mini_pool
-                        jackpot.mini_pool = Decimal('100.00')
-                        jackpot_won_tier = 'MINI'
+                jackpot_won_tier = roll_jackpot(actual_cost)
+                if jackpot_won_tier:
+                    pool_field = f"{jackpot_won_tier.lower()}_pool"
+                    jackpot_won = getattr(jackpot, pool_field)
+                    setattr(jackpot, pool_field, SEED_POOLS[jackpot_won_tier])
                 
                 if jackpot_won:
                     wallet.balance += jackpot_won

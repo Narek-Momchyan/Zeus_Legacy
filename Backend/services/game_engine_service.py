@@ -374,14 +374,9 @@ class GameEngineService:
                     multiplier_symbols.append(symbol_cfg.multiplier_value)
                 continue
 
-            # Scatters: Record them but don't add to winning_coords (they stay on grid)
+            # Scatters: they don't explode and are paid once per spin by execute_spin,
+            # so they are NOT part of the tumble wins/payout here.
             if symbol_cfg.type == "scatter":
-                # Scatters pay if 4+ land, but they don't explode
-                applicable = [b for b in symbol_cfg.payout_config.keys() if count >= b]
-                if applicable:
-                    payout = symbol_cfg.payout_config[max(applicable)]
-                    wins.append(WinDetail(symbol_id=symbol_id, count=count, payout=payout))
-                    total_payout += payout
                 continue
 
             # Regular symbols: Evaluate paytable
@@ -458,7 +453,6 @@ class GameEngineService:
         tumble_count = 0
         
         global_mult = current_global_multiplier
-        scatters_paid = False
         triggered_free_spins = False
         is_max_win = False
 
@@ -466,15 +460,15 @@ class GameEngineService:
             result = self.evaluate_wins(current_grid)
             
             # 1. Handle Scatters (Pay once per spin)
+            # Scatters stay on the grid, so the count can only grow during tumbles. The scatter
+            # win is assigned (not accumulated) from the current count, so it is paid once.
             scatter_count = sum(row.count("scatter") for row in current_grid)
             if scatter_count >= 4:
                 triggered_free_spins = True
-                if not scatters_paid:
-                    scatter_cfg = self._symbol_map["scatter"]
-                    applicable = [b for b in scatter_cfg.payout_config.keys() if scatter_count >= b]
-                    if applicable:
-                        total_scatter_win = scatter_cfg.payout_config[max(applicable)]
-                        scatters_paid = True
+                scatter_cfg = self._symbol_map["scatter"]
+                applicable = [b for b in scatter_cfg.payout_config.keys() if scatter_count >= b]
+                if applicable:
+                    total_scatter_win = scatter_cfg.payout_config[max(applicable)]
 
             # 2. Payout Calculation
             cumulative_base_win += result.total_payout
@@ -504,7 +498,7 @@ class GameEngineService:
                 is_free_spin=is_free_spin, 
                 is_ante_bet=is_ante_bet,
                 disable_multipliers=disable_multipliers
-            ) if (result.wins and not max_win_capped) else [row[:] for row in current_grid]
+            ) if (result.winning_coords and not max_win_capped) else [row[:] for row in current_grid]
 
             step_data = {
                 "step": tumble_count,
@@ -519,7 +513,8 @@ class GameEngineService:
             }
             tumble_history.append(step_data)
             
-            if not result.wins or max_win_capped:
+            # Only exploding (regular) wins continue the tumble sequence
+            if not result.winning_coords or max_win_capped:
                 break
                 
             current_grid = next_grid

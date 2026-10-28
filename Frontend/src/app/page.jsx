@@ -187,7 +187,7 @@ function App() {
 
         {/* Right — collected multipliers */}
         <aside className="multiplier-panel">
-          {globalMultiplier > 1 && (
+          {globalMultiplier > 0 && (
             <div className="total-multiplier-badge">
               <span className="total-mult-label">Total</span>
               <span className="total-mult-value">×{globalMultiplier}</span>

@@ -58,7 +58,7 @@ class BettingService:
                 else:
                     # Normal Spin
                     bet_amount = requested_bet_amount
-                    current_multiplier = 1.0
+                    current_multiplier = GameEngineService.START_MULTIPLIER
                     actual_cost = Decimal(str(bet_amount))
                     force_scatters = 0
                     if is_buy_bonus:
@@ -95,7 +95,7 @@ class BettingService:
                     wallet.free_spins_left += 15
                     if not is_free_spin:
                         wallet.free_spin_bet_amount = bet_amount
-                        wallet.current_multiplier = 1.0
+                        wallet.current_multiplier = GameEngineService.START_MULTIPLIER
                 
                 if is_free_spin:
                     wallet.free_spins_left -= 1

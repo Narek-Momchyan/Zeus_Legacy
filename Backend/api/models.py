@@ -21,7 +21,7 @@ class UserWallet(models.Model):
     
     # Secure Game State Tracking
     free_spins_left = models.IntegerField(default=0)
-    current_multiplier = models.FloatField(default=1.0)
+    current_multiplier = models.FloatField(default=0.0)
     free_spin_bet_amount = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'))
     
     updated_at = models.DateTimeField(auto_now=True)

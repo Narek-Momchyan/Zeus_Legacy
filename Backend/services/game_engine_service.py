@@ -47,6 +47,10 @@ class GameEngineService:
     Handles grid generation, win evaluation, and tumbling mechanics.
     """
 
+    # The global multiplier starts at 0 (base game and start of free spins): collected
+    # multiplier symbols are added to it and it is applied only when it is > 0.
+    START_MULTIPLIER = 0.0
+
     def _load_symbols_from_db(self):
         try:
             from api.models import Symbol, GameAudio

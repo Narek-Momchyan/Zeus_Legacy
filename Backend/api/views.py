@@ -126,7 +126,7 @@ class ResetWalletView(APIView):
             user, _ = User.objects.get_or_create(username="dev_player")
         wallet, _ = UserWallet.objects.get_or_create(user=user)
         wallet.free_spins_left = 0
-        wallet.current_multiplier = 1.0
+        wallet.current_multiplier = GameEngineService.START_MULTIPLIER
         wallet.free_spin_bet_amount = Decimal('0.00')
         wallet.save()
         

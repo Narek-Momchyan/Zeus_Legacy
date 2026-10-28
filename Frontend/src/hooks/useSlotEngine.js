@@ -315,10 +315,10 @@ const useSlotEngine = () => {
           isBonusRef.current = true;
           setIsBonusMode(true);
           setFreeSpinsLeft(result.free_spins_left || 15);
-          setShowBonusTrigger(true);
+          setShowBonusTrigger(result.free_spins_awarded || 15);
           startBonusTheme();
         } else {
-          setShowBonusTrigger(true);
+          setShowBonusTrigger(result.free_spins_awarded || 15);
         }
       }
 

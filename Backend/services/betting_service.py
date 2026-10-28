@@ -92,7 +92,7 @@ class BettingService:
 
                 # 6. Update Bonus State Securely
                 if spin_result['triggered_free_spins']:
-                    wallet.free_spins_left += 15
+                    wallet.free_spins_left += spin_result['free_spins_awarded']
                     if not is_free_spin:
                         wallet.free_spin_bet_amount = bet_amount
                         wallet.current_multiplier = GameEngineService.START_MULTIPLIER

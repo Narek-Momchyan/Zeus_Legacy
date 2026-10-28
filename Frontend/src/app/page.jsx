@@ -105,7 +105,7 @@ function App() {
       {/* ── Modals ── */}
       <AnimatePresence>
         {showWinModal && <BigWinOverlay key="win-modal" amount={lastWinAmount} betAmount={betAmount} onComplete={() => setShowWinModal(false)} />}
-        {showBonusTrigger && <BonusTrigger key="bonus-trigger" onComplete={() => setShowBonusTrigger(false)} />}
+        {showBonusTrigger && <BonusTrigger key="bonus-trigger" spins={showBonusTrigger} onComplete={() => setShowBonusTrigger(false)} />}
         {showBonusSummary && <BonusSummary key="bonus-summary" totalWin={bonusTotalWin} onClose={() => setShowBonusSummary(false)} />}
         {jackpotWon && <JackpotWinOverlay key="jackpot-win" jackpotWon={jackpotWon} onClose={() => setJackpotWon(null)} />}
       </AnimatePresence>

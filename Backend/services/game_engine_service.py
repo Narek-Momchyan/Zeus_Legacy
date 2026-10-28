@@ -460,9 +460,8 @@ class GameEngineService:
         global_mult = current_global_multiplier
         scatters_paid = False
         triggered_free_spins = False
-        any_multiplier_collected = False
         is_max_win = False
-        
+
         while tumble_count < max_tumbles:
             result = self.evaluate_wins(current_grid)
             
@@ -477,20 +476,18 @@ class GameEngineService:
                         total_scatter_win = scatter_cfg.payout_config[max(applicable)]
                         scatters_paid = True
 
-            # 2. Multiplier logic
-            tumble_mult_sum = sum(result.multiplier_symbols)
-            
-            # If there's a win in this tumble, multipliers are collected
-            if result.wins and tumble_mult_sum > 0:
-                global_mult += tumble_mult_sum
-                any_multiplier_collected = True
-            
-            # 3. Payout Calculation
+            # 2. Payout Calculation
             cumulative_base_win += result.total_payout
-            
+
+            # 3. Multiplier logic
+            # Multiplier symbols never explode, so every multiplier that landed during this spin
+            # is still on the grid. They are collected ONCE, at the end of the spin, and only if
+            # the spin had a win. Here we only preview the value for the sequence win display.
+            pending_mult_sum = sum(result.multiplier_symbols)
+
             # Sequence win = (Sum of gem wins * Current Global Multiplier) + Scatter Win
-            # Real Slot Rule: Accumulated multiplier ONLY applies if at least one multiplier landed in a winning tumble of this spin.
-            current_multiplier_to_apply = global_mult if (global_mult > 0 and any_multiplier_collected) else 1
+            # Real Slot Rule: Accumulated multiplier ONLY applies if at least one multiplier is collected in this spin.
+            current_multiplier_to_apply = (global_mult + pending_mult_sum) if (cumulative_base_win > 0 and pending_mult_sum > 0) else 1
             # IMPORTANT: Scatter wins are NEVER multiplied by the global multiplier in real slots.
             current_sequence_win = (cumulative_base_win * current_multiplier_to_apply) + total_scatter_win
 
@@ -514,7 +511,7 @@ class GameEngineService:
                 "grid": [row[:] for row in current_grid],
                 "next_grid": next_grid if not max_win_capped else [row[:] for row in current_grid],
                 "winning_coords": result.winning_coords if not max_win_capped else [],
-                "multiplier": tumble_mult_sum if tumble_mult_sum > 0 else None,
+                "multiplier": None,  # Set on the last winning step once multipliers are collected
                 "payout": result.total_payout if not max_win_capped else 0,
                 "sequence_win": current_sequence_win,
                 "is_free_spin": is_free_spin,
@@ -528,6 +525,24 @@ class GameEngineService:
             current_grid = next_grid
             tumble_count += 1
             
+        # Collect each multiplier symbol exactly once per spin (only if the spin had a win)
+        collected_multipliers = []
+        if cumulative_base_win > 0:
+            collected_multipliers = [
+                self._symbol_map[symbol_id].multiplier_value
+                for row in current_grid for symbol_id in row
+                if symbol_id in self._symbol_map and self._symbol_map[symbol_id].type == "multiplier"
+            ]
+        spin_mult_sum = sum(collected_multipliers)
+        any_multiplier_collected = spin_mult_sum > 0
+        if any_multiplier_collected:
+            global_mult += spin_mult_sum
+            # Attach the collected value to the last winning step so the UI animates it once
+            for step_data in reversed(tumble_history):
+                if step_data["winning_coords"]:
+                    step_data["multiplier"] = spin_mult_sum
+                    break
+
         final_multiplier_to_apply = global_mult if (global_mult > 0 and any_multiplier_collected) else 1
         final_total_win = (cumulative_base_win * final_multiplier_to_apply) + total_scatter_win
         
@@ -546,6 +561,7 @@ class GameEngineService:
             "triggered_free_spins": triggered_free_spins,
             "free_spins_left": 15 if triggered_free_spins else 0,
             "global_multiplier_value": global_mult,
+            "collected_multipliers": collected_multipliers,
             "is_free_spin": is_free_spin,
             "is_max_win": is_max_win
         }

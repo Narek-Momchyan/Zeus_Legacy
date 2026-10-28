@@ -157,12 +157,13 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 # Render-i u irakan serverneri hamar (Whitenoise)
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
-# CORS Configuration
-CORS_ALLOW_ALL_ORIGINS = True
+# CORS Configuration: only the listed frontend origins may call the API
+# (override with the CORS_ALLOWED_ORIGINS env variable, comma separated)
+CORS_ALLOW_ALL_ORIGINS = False
 CORS_ALLOWED_ORIGINS = config(
     'CORS_ALLOWED_ORIGINS', 
-    default='http://localhost:5173,http://127.0.0.1:5173', 
-    cast=lambda v: [s.strip() for s in v.split(',')]
+    default='http://localhost:3000,http://127.0.0.1:3000,https://zeus-legacy-alpha.vercel.app', 
+    cast=lambda v: [s.strip() for s in v.split(',') if s.strip()]
 )
 CORS_ALLOW_METHODS = [
     "GET",

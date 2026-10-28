@@ -13,6 +13,7 @@ import logging
 
 from services.game_engine_service import GameEngineService
 from .models import UserWallet, GameLog, ProgressiveJackpot
+from .utils import parse_bool
 
 logger = logging.getLogger('game_events')
 
@@ -28,12 +29,13 @@ class SpinView(APIView):
             # 1. Get user
             user = request.user
             if not user or user.is_anonymous:
+                # DEMO MODE: anonymous visitors share the "dev_player" demo account (play money only, no real funds).
                 user, _ = User.objects.get_or_create(username="dev_player")
             
             # 2. Parse request data
             bet_amount = Decimal(str(request.data.get('bet_amount', '1.00')))
-            is_buy_bonus = request.data.get('is_buy_bonus', False)
-            is_ante_bet = request.data.get('is_ante_bet', False)
+            is_buy_bonus = parse_bool(request.data.get('is_buy_bonus', False))
+            is_ante_bet = parse_bool(request.data.get('is_ante_bet', False))
 
             # 3. Validation
             if bet_amount < Decimal('0.20') or bet_amount > Decimal('100.00'):
@@ -123,6 +125,7 @@ class ResetWalletView(APIView):
     def post(self, request):
         user = request.user
         if not user or user.is_anonymous:
+            # DEMO MODE: anonymous visitors share the "dev_player" demo account (play money only, no real funds).
             user, _ = User.objects.get_or_create(username="dev_player")
         wallet, _ = UserWallet.objects.get_or_create(user=user)
         wallet.free_spins_left = 0

@@ -75,18 +75,21 @@ def simulate(spins, mode, seed=None):
     max_wins = 0
     best_round = 0.0
 
-    jackpot_pools = dict(jackpot_rules.SEED_POOLS) if jackpot_rules else None
+    if jackpot_rules:
+        jackpot_seeds = {t: float(v) for t, v in jackpot_rules.SEED_POOLS.items()}
+        jackpot_rates = {t: float(v) for t, v in jackpot_rules.CONTRIBUTION_RATES.items()}
+        jackpot_pools = dict(jackpot_seeds)
     jackpot_rng = random.Random(None if seed is None else seed + 1)
 
     for _ in range(spins):
         total_bet += cost
 
         if jackpot_rules:
+            jackpot_pools = {t: p + cost * jackpot_rates[t] for t, p in jackpot_pools.items()}
             tier = jackpot_rules.roll_jackpot(cost, rand=jackpot_rng.random)
-            jackpot_pools = {t: p + cost * jackpot_rules.CONTRIBUTION_RATES[t] for t, p in jackpot_pools.items()}
             if tier:
                 jackpot_win += jackpot_pools[tier]
-                jackpot_pools[tier] = jackpot_rules.SEED_POOLS[tier]
+                jackpot_pools[tier] = jackpot_seeds[tier]
 
         result = engine.execute_spin(
             is_free_spin=False,

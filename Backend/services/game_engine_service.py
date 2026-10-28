@@ -331,10 +331,11 @@ class GameEngineService:
             current_scatters = sum(row.count("scatter") for row in grid)
             needed = force_scatters - current_scatters
             if needed > 0:
-                all_coords = [(r, c) for r in range(self.config.rows) for c in range(self.config.cols)]
-                self._secure_shuffle(all_coords)
+                # Only overwrite non-scatter cells, otherwise the grid can end up with < force_scatters
+                free_coords = [(r, c) for r in range(self.config.rows) for c in range(self.config.cols) if grid[r][c] != "scatter"]
+                self._secure_shuffle(free_coords)
                 for i in range(needed):
-                    r, c = all_coords[i]
+                    r, c = free_coords[i]
                     grid[r][c] = "scatter"
                     
         return grid
